@@ -665,7 +665,7 @@
 
     <div style="margin-top:36px; padding:24px 32px; background:var(--hl); border-left:4px solid var(--accent);">
       <p class="body" style="margin:0; font-size:26px; color:var(--ink); line-height:1.4;">
-        <b>Resultado operativo v3.1:</b> en escenarios forzados <b>GraphSAGE</b> aprueba 73% (11/15) y domina transversalmente. En el escenario <b style="color:var(--accent);">nativo 1:30</b>, GraphSAGE aprueba las <b>3 de 3 configuraciones</b> — consistente con Weber 2019 y valida la competencia de la arquitectura con la distribución natural del dataset.
+        <b>Resultado:</b> GraphSAGE lidera en ambos regímenes — <b>73% forzado</b> y <b style="color:var(--accent);">100% nativo</b> — validando su competencia con la distribución natural del dataset (consistente con Weber 2019).
       </p>
     </div>
 
@@ -691,9 +691,9 @@
           <li><b>Columna 1:100:</b> sólo GraphSAGE se mantiene útil (0.44)</li>
           <li><b>GCN:</b> techo claro ~0.31 — limitado</li>
         </ul>
-        <div style="margin-top:28px; background:var(--bg-alt); padding:24px 28px; border-left:3px solid var(--support);">
+        <div style="margin-top:28px; background:var(--bg-alt); padding:22px 28px; border-left:3px solid var(--support);">
           <div style="font-family:var(--ff-serif); font-size:24px; color:var(--ink); font-weight:600; margin-bottom:6px;">Nota metodológica</div>
-          <p class="small" style="line-height:1.45; margin:0;">Valores por debajo de SOTA moderno (Bellei 2024: 0.93, Pareja 2020: 0.89) por validación estática + quality gate estricto + arquitecturas simples por diseño. El escenario nativo 1:30 y su comparación con literatura se presenta en D6.</p>
+          <p class="small" style="line-height:1.45; margin:0;">Por debajo de SOTA moderno (Bellei 2024 = 0.93) por diseño — arquitecturas simples para aislar el efecto del imbalance sobre estabilidad XAI.</p>
         </div>
       </div>
     </div>
@@ -744,38 +744,28 @@
     <h2 class="h-head" style="max-width:1600px;">PGExplainer colapsa en <span style="color:var(--accent);">23 / 23</span> — bug documentado en PyG 2.7</h2>
     <p class="h-sub" style="max-width:1600px;">No es un fallo del método: es un bug de configuración default. Caracterizado y con fix empírico.</p>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:48px; margin-top:24px;">
-      <div class="fig-host" data-fig="A9" style="height:600px;"></div>
+    <div style="display:grid; grid-template-columns:1.15fr 1fr; gap:48px; margin-top:28px;">
+      <div class="fig-host" data-fig="A9" style="height:640px;"></div>
 
-      <div>
-        <div style="background:var(--dark); color:#ECE6D8; padding:24px 32px;">
-          <div class="micro" style="color:var(--accent-soft); letter-spacing:.22em; text-transform:uppercase; font-weight:600; margin-bottom:12px;">Bug #1 · PyG 2.7</div>
-          <div style="font-family:var(--ff-mono); font-size:22px; color:#ECE6D8; line-height:1.5;">
-            torch_geometric/explain/algorithm/pg_explainer.py:509
-            <br/>
-            <span style="color:#E58A6E;">size_loss = mask.sum() * self.coeffs[<b>'edge_size': 0.05</b>]</span>
+      <div style="display:flex; flex-direction:column; gap:28px; justify-content:center;">
+        <div style="background:var(--dark); color:#ECE6D8; padding:32px 36px;">
+          <div class="micro" style="color:var(--accent-soft); letter-spacing:.22em; text-transform:uppercase; font-weight:600; margin-bottom:16px;">Bug · PyG 2.7 · pg_explainer.py</div>
+          <div style="font-family:var(--ff-mono); font-size:26px; color:#E58A6E; line-height:1.3; font-weight:600;">
+            edge_size = 0.05 &nbsp;→&nbsp; mask = 0
           </div>
           <div style="margin-top:14px; font-family:var(--ff-sans); font-size:22px; color:#B8B2A4; line-height:1.4;">
-            Default <code style="color:#E58A6E;">edge_size=0.05</code> hace que minimizar la pérdida sea trivial con <code>mask = 0</code> → mode collapse universal.
+            Default causa mode collapse universal (sin warning, sin NaN).
           </div>
         </div>
 
-        <div style="margin-top:20px; background:var(--bg-alt); padding:22px 28px; border-left:3px solid var(--support);">
-          <div style="font-family:var(--ff-serif); font-size:24px; font-weight:600; color:var(--ink); margin-bottom:10px;">Fix empírico (v3.1)</div>
-          <div style="font-family:var(--ff-mono); font-size:20px; color:var(--ink); line-height:1.6;">
-            • <b>edge_size = 0.005</b> → mask std 0.25-0.27 ✓<br/>
-            • <b>temp = [1.0, 1.0]</b> + gradient clipping (max_norm=1.0)<br/>
-            • Validado en Cora (baseline balanceado)
+        <div style="background:var(--bg-alt); padding:28px 36px; border-left:4px solid var(--support);">
+          <div style="font-family:var(--ff-serif); font-size:26px; font-weight:600; color:var(--ink); margin-bottom:12px;">Fix empírico v3.1</div>
+          <div style="font-family:var(--ff-mono); font-size:24px; color:var(--ink); line-height:1.6;">
+            <b>edge_size = 0.005</b> + <b>temp = [1, 1]</b> + gradient clipping
           </div>
-          <div style="margin-top:10px; font-family:var(--ff-sans); font-size:18px; color:var(--ink-soft); font-style:italic;">
-            En Elliptic persisten 99% NaN epochs — sugiere overflow adicional en embeddings GNN.
+          <div style="margin-top:10px; font-family:var(--ff-sans); font-size:20px; color:var(--ink-soft); font-style:italic;">
+            Validado en Cora; primera caracterización pública.
           </div>
-        </div>
-
-        <div style="margin-top:20px; padding:16px 24px; background:var(--hl); border-left:4px solid var(--accent);">
-          <p class="body" style="font-size:22px; line-height:1.4; margin:0; color:var(--ink);">
-            <b>Implicación metodológica:</b> cualquier paper que use PGExplainer default de PyG 2.7 reporta resultados inválidos sin saberlo — sin warnings, sin NaN, sin error. GNNExplainer queda como único explicador operativamente estable para este estudio.
-          </p>
         </div>
       </div>
     </div>
@@ -829,27 +819,18 @@
   <div class="slide">
     <div class="eyebrow" style="color:var(--accent);">Hallazgo #4 · Paradoja nativa (v3.1)</div>
     <h2 class="h-head" style="max-width:1600px;">El escenario nativo 1:30 <span style="color:var(--accent);">NO es el más estable</span></h2>
-    <p class="h-sub" style="max-width:1600px;">Spearman 0.188 contra 0.593 del 1:50 forzado. La distribución natural de Elliptic produce explicaciones <b>más</b> variables.</p>
+    <p class="h-sub" style="max-width:1600px;">La distribución natural de Elliptic produce explicaciones <b>más variables</b> que los regímenes forzados.</p>
 
-    <div style="display:grid; grid-template-columns:1.35fr 1fr; gap:44px; margin-top:20px;">
-      <div class="fig-host" data-fig="A11" style="height:560px;"></div>
+    <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:56px; margin-top:28px; align-items:center;">
+      <div class="fig-host" data-fig="A11" style="height:620px;"></div>
 
       <div>
-        <div class="fig-host" data-fig="A12" style="height:360px;"></div>
-        <div style="margin-top:18px; padding:18px 24px; background:var(--hl); border-left:4px solid var(--accent);">
-          <h4 style="font-family:var(--ff-serif); font-size:24px; font-weight:600; color:var(--ink); margin:0 0 6px;">Hipótesis</h4>
-          <p class="body" style="font-size:20px; line-height:1.4; margin:0;">
-            La heterogeneidad natural de Elliptic (sin balanceo artificial) induce mayor variabilidad estructural en los subgrafos explicativos. Los escenarios forzados actúan como regularizadores implícitos de la estabilidad XAI.
-          </p>
+        <div class="fig-host" data-fig="A12" style="height:380px;"></div>
+        <div style="margin-top:24px; display:grid; grid-template-columns:1fr 1fr; gap:18px;">
+          <div class="kpi-box"><div class="num" style="font-size:56px;">0.19</div><div class="lbl">ρ · nativo 1:30</div></div>
+          <div class="kpi-box"><div class="num" style="font-size:56px;">0.59</div><div class="lbl">ρ · 1:50 forzado</div></div>
         </div>
       </div>
-    </div>
-
-    <div style="margin-top:18px; display:grid; grid-template-columns:repeat(4, 1fr); gap:20px;">
-      <div class="kpi-box"><div class="num">0.188</div><div class="lbl">ρ medio · nativo</div></div>
-      <div class="kpi-box"><div class="num">0.593</div><div class="lbl">ρ peak · 1:50 forzado</div></div>
-      <div class="kpi-box"><div class="num">6 / 12</div><div class="lbl">pasan filtro nativo</div></div>
-      <div class="kpi-box"><div class="num">3× menor</div><div class="lbl">que 1:50 forzado</div></div>
     </div>
 
     <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic · Paradoja nativa</span><span class="page">16 / 31</span></div>
@@ -863,17 +844,16 @@
     <h2 class="h-head" style="max-width:1600px;">Top-10 configuraciones forzadas por <span style="color:var(--accent);">Spearman</span></h2>
     <p class="h-sub" style="max-width:1600px;">Receptive field amplio + pérdida focal + desbalance 1:50 = máxima robustez explicativa</p>
 
-    <div style="display:grid; grid-template-columns:1.35fr 1fr; gap:44px; margin-top:24px; align-items:center;">
-      <div class="fig-host" data-fig="A10" style="height:560px;"></div>
+    <div style="display:grid; grid-template-columns:1.45fr 1fr; gap:56px; margin-top:32px; align-items:center;">
+      <div class="fig-host" data-fig="A10" style="height:600px;"></div>
 
-      <div>
-        <div style="display:flex; flex-direction:column; gap:16px;">
-          <div class="card" style="padding:18px 24px;"><h4 style="font-size:24px;">1:50 domina</h4><p style="font-size:20px; line-height:1.4;">Los dos primeros puestos son 1:50 — confirma la ventana óptima del Hallazgo #1</p></div>
-          <div class="card" style="padding:18px 24px;"><h4 style="font-size:24px;">Focal loss</h4><p style="font-size:20px; line-height:1.4;">Aparece en #1, #2, #5 y #6 — la ponderación dinámica ayuda bajo desbalance alto</p></div>
-          <div class="card" style="padding:18px 24px;"><h4 style="font-size:24px;">TAGCN / GAT</h4><p style="font-size:20px; line-height:1.4;">Receptive field extendido + atención multi-cabeza estabilizan el ranking</p></div>
-          <div style="padding:16px 24px; background:var(--bg-alt); border-left:3px solid var(--accent); font-size:20px; color:var(--ink-soft); font-style:italic; line-height:1.4;">
-            Ninguna config del escenario <b>nativo 1:30</b> entra en el top-10 — refuerza la paradoja nativa (S16).
-          </div>
+      <div style="display:flex; flex-direction:column; gap:22px;">
+        <div style="padding:20px 28px; background:var(--bg-alt); border-left:3px solid var(--accent);">
+          <h4 style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); margin:0 0 8px;">Patrón del top-2</h4>
+          <p style="font-size:22px; line-height:1.4; margin:0;">Receptive field amplio (<b>TAGCN-K3 / GAT</b>) + <b>focal loss</b> + <b>1:50</b> forzado → ρ ≈ 0.79.</p>
+        </div>
+        <div style="padding:20px 28px; background:var(--hl); border-left:3px solid var(--accent);">
+          <p style="font-size:22px; line-height:1.4; margin:0;">Ninguna config <b>nativa 1:30</b> entra al top-10 — refuerza la paradoja de la S16.</p>
         </div>
       </div>
     </div>
@@ -889,28 +869,21 @@
     <h2 class="h-head" style="max-width:1600px;">Comparación con el estado del arte — <span style="color:var(--accent);">posición honesta</span></h2>
     <p class="h-sub" style="max-width:1600px;">Forzado vs. nativo. El escenario nativo 1:30 <b>sí</b> es competitivo con Weber 2019 (baseline canónico).</p>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:20px;">
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:56px; margin-top:24px;">
       <div>
-        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px;">D1 · SOTA general (forzado)</div>
-        <div class="fig-host" data-fig="D1" style="height:460px;"></div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:12px;">D1 · SOTA general (forzado)</div>
+        <div class="fig-host" data-fig="D1" style="height:440px;"></div>
       </div>
       <div>
-        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px;">D6 · Nativo vs. literatura</div>
-        <div class="fig-host" data-fig="D6" style="height:460px;"></div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:12px;">D6 · Nativo vs. literatura</div>
+        <div class="fig-host" data-fig="D6" style="height:440px;"></div>
       </div>
     </div>
 
-    <div style="margin-top:24px; display:grid; grid-template-columns:1fr 1fr; gap:32px;">
-      <ul class="clean" style="font-size:22px; margin:0;">
-        <li><b>Split temporal</b> favorece: los pasos finales de Elliptic tienen mayor tasa de etiquetado</li>
-        <li><b>Arquitecturas temporales</b> (EvolveGCN, MDST-GNN) y <b>subgraph-level</b> (Bellei 2024) superan por diseño</li>
-        <li>Nuestro <b>quality gate</b> descartó 37/60 configs; la literatura reporta mejores valores sin filtro</li>
-      </ul>
-      <div style="padding:22px 28px; background:var(--hl); border-left:4px solid var(--accent);">
-        <p class="body" style="margin:0; font-size:22px; line-height:1.4; color:var(--ink);">
-          <b>Validación v3.1:</b> nuestro <b>GraphSAGE nativo F1=0.53 (val)</b> es consistente con <b>Weber 2019 GCN F1=0.63 (val)</b> en el mismo régimen nativo. La brecha con SOTA moderno (Bellei 0.93, arXiv 0.85) es de <b>diseño</b> — priorizamos estabilidad XAI sobre F1 máximo.
-        </p>
-      </div>
+    <div style="margin-top:36px; padding:22px 32px; background:var(--hl); border-left:4px solid var(--accent);">
+      <p class="body" style="margin:0; font-size:24px; line-height:1.4; color:var(--ink);">
+        <b>Validación v3.1:</b> GraphSAGE nativo F1 = <b>0.53</b> ≈ Weber 2019 GCN nativo 0.63. Brecha con SOTA moderno es de <b>diseño</b> — priorizamos estabilidad XAI sobre F1 máximo.
+      </p>
     </div>
 
     <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">18 / 31</span></div>
@@ -939,7 +912,7 @@
         </ul>
         <div style="margin-top:28px; padding:20px 28px; background:var(--hl); border-left:4px solid var(--accent);">
           <p class="body" style="font-size:24px; line-height:1.4; margin:0;">
-            <b>Suma total de scores:</b> GAT <b style="color:var(--accent);">15</b> · GraphSAGE 14 · TAGCN 13 · GCN 6. <b>GAT es la arquitectura más versátil</b> transversalmente.
+            <b>Suma total:</b> GAT <b style="color:var(--accent);">15</b> · SAGE 14 · TAGCN 13 · GCN 6 → <b>GAT más versátil</b>.
           </p>
         </div>
       </div>
@@ -986,39 +959,39 @@
     <h2 class="h-head" style="max-width:1600px;">Conclusiones — v3.1</h2>
 
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:42px; margin-top:28px;">
-      <div class="fade-up d1" style="display:flex; gap:28px; align-items:flex-start;">
+      <div style="display:flex; gap:28px; align-items:flex-start;">
         <div style="font-family:var(--ff-serif); font-weight:600; font-size:92px; color:var(--accent); line-height:0.9; min-width:110px; font-feature-settings:'tnum' 1;">01</div>
         <div>
-          <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; color:var(--ink); margin:0 0 10px;">Pico y colapso, no monotonía</h4>
-          <p class="body" style="font-size:22px; line-height:1.4;">La estabilidad explicativa tiene una <b>ventana óptima en 1:50 forzado</b> (ρ = 0.59) y un colapso abrupto en 1:100 (ρ = 0.24). Patrón no-monotónico <b>no documentado previamente</b> en literatura XAI para GNNs.</p>
+          <h4 style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); margin:0 0 8px;">Pico y colapso, no monotonía</h4>
+          <p class="body" style="font-size:22px; line-height:1.35;">Ventana óptima en <b>1:50 forzado</b> (ρ = 0.59), colapso abrupto en 1:100 (ρ = 0.24).</p>
         </div>
       </div>
-      <div class="fade-up d2" style="display:flex; gap:28px; align-items:flex-start;">
+      <div style="display:flex; gap:28px; align-items:flex-start;">
         <div style="font-family:var(--ff-serif); font-weight:600; font-size:92px; color:var(--accent); line-height:0.9; min-width:110px; font-feature-settings:'tnum' 1;">02</div>
         <div>
-          <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; color:var(--ink); margin:0 0 10px;">Paradoja nativa <span style="color:var(--accent);">(v3.1)</span></h4>
-          <p class="body" style="font-size:22px; line-height:1.4;"><b>El régimen nativo 1:30 produce menor estabilidad</b> (ρ = 0.19) que el 1:50 forzado (0.59). La heterogeneidad natural actúa como desregularizador de la explicación — contraintuitivo.</p>
+          <h4 style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); margin:0 0 8px;">Paradoja nativa <span style="color:var(--accent);">(v3.1)</span></h4>
+          <p class="body" style="font-size:22px; line-height:1.35;">El régimen nativo 1:30 exhibe <b>menor estabilidad</b> (ρ = 0.19) que el 1:50 forzado.</p>
         </div>
       </div>
-      <div class="fade-up d3" style="display:flex; gap:28px; align-items:flex-start;">
+      <div style="display:flex; gap:28px; align-items:flex-start;">
         <div style="font-family:var(--ff-serif); font-weight:600; font-size:92px; color:var(--accent); line-height:0.9; min-width:110px; font-feature-settings:'tnum' 1;">03</div>
         <div>
-          <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; color:var(--ink); margin:0 0 10px;">Bug PyG 2.7 caracterizado <span style="color:var(--accent);">(v3.1)</span></h4>
-          <p class="body" style="font-size:22px; line-height:1.4;">PGExplainer colapsa en <b>23/23 configs</b> por <code>edge_size=0.05</code> default. Fix empírico <code>edge_size=0.005</code> + <code>temp=[1,1]</code> valida en Cora. <b>Primera caracterización pública.</b></p>
+          <h4 style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); margin:0 0 8px;">Bug PyG 2.7 caracterizado <span style="color:var(--accent);">(v3.1)</span></h4>
+          <p class="body" style="font-size:22px; line-height:1.35;">PGExplainer colapsa en 23/23 configs. Fix <code>edge_size=0.005</code> validado en Cora.</p>
         </div>
       </div>
-      <div class="fade-up d4" style="display:flex; gap:28px; align-items:flex-start;">
+      <div style="display:flex; gap:28px; align-items:flex-start;">
         <div style="font-family:var(--ff-serif); font-weight:600; font-size:92px; color:var(--accent); line-height:0.9; min-width:110px; font-feature-settings:'tnum' 1;">04</div>
         <div>
-          <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; color:var(--ink); margin:0 0 10px;">Precisión ≠ estabilidad</h4>
-          <p class="body" style="font-size:22px; line-height:1.4;">Ninguna arquitectura domina ambos ejes. <b>GraphSAGE lidera F1 (0.46); GAT lidera estabilidad (0.53).</b> Rank corr −0.20. Implica elección por caso de uso (D4).</p>
+          <h4 style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); margin:0 0 8px;">Precisión ≠ estabilidad</h4>
+          <p class="body" style="font-size:22px; line-height:1.35;"><b>GraphSAGE lidera F1; GAT lidera ρ.</b> Rank corr −0.20 → elección por caso de uso.</p>
         </div>
       </div>
     </div>
 
-    <div style="margin-top:36px; padding:24px 32px; background:var(--hl); border-left:4px solid var(--accent);">
-      <p class="body" style="font-size:24px; line-height:1.45; margin:0;">
-        <b>Defense statement v3.1:</b> primer estudio factorial sistemático de estabilidad XAI en GNNs sobre Elliptic con <b>5 escenarios × 4 arquitecturas × 3 balanceos × 3 explicadores</b> (60 configs). Tres contribuciones novel: tradeoff accuracy-estabilidad cuantificado, peak-collapse pattern no-monotónico, y caracterización de 2 bugs silenciosos en PyTorch Geometric 2.7 con fixes testeados.
+    <div style="margin-top:36px; padding:22px 32px; background:var(--hl); border-left:4px solid var(--accent);">
+      <p class="body" style="font-size:24px; line-height:1.4; margin:0;">
+        <b>Defense statement:</b> primer estudio factorial sistemático de estabilidad XAI en GNNs sobre Elliptic — 60 configs, 23 aprobadas. <b>Tres contribuciones novel</b>: peak-collapse no-monotónico, paradoja nativa, 2 bugs caracterizados en PyG 2.7 con fixes testeados.
       </p>
     </div>
 
@@ -1036,11 +1009,10 @@
       <div>
         <div class="badge badge--ink" style="margin-bottom:20px;">Aportes v3.1</div>
         <ul class="clean">
-          <li><b>Metodológico:</b> 2 bugs de PyG 2.7 caracterizados y con fixes testeados (<code>edge_size=0.005</code>, <code>temp=[1,1]</code> + gradient clipping)</li>
-          <li><b>Académico:</b> caracterización empírica del patrón pico-colapso en estabilidad explicativa (no documentado previamente)</li>
-          <li><b>Académico:</b> <b>paradoja nativa</b> — el escenario 1:30 real de Elliptic produce menos estabilidad que los forzados (novel v3.1)</li>
-          <li><b>Práctico:</b> matriz de recomendación lista para instituciones financieras y reguladores</li>
-          <li><b>Infraestructura:</b> pipeline reproducible (MLflow + quality gate) con 60 configs evaluadas, 23 aprobadas</li>
+          <li><b>Metodológico:</b> 2 bugs de PyG 2.7 caracterizados con fix testeado (<code>edge_size=0.005</code>)</li>
+          <li><b>Académico:</b> patrón pico-colapso no documentado previamente + <b>paradoja nativa</b> (novel v3.1)</li>
+          <li><b>Práctico:</b> matriz de recomendación operativa para AML auditable</li>
+          <li><b>Infraestructura:</b> pipeline reproducible, 60 configs evaluadas, 23 aprobadas</li>
         </ul>
       </div>
       <div>

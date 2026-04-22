@@ -17,7 +17,7 @@ const axisBox = (w,h,m) => ({x:m.left, y:m.top, w:w-m.left-m.right, h:h-m.top-m.
 
 /* ---- bars_h ---- */
 function bars_h(f){
-  const W=1100,H=560,A=axisBox(W,H,{top:40,right:120,bottom:70,left:200});
+  const W=1100,H=560,A=axisBox(W,H,{top:40,right:200,bottom:70,left:200});
   const xmax=f.xMax||1, rowH=A.h/f.data.length, bh=rowH*0.6;
   let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
   [0,0.25,0.5,0.75,1].filter(t=>t<=xmax+.01).forEach(t=>{
