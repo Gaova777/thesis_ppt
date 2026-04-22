@@ -156,9 +156,8 @@ function scatter_filter(f){
   const W=1100, H=560;
   const A=axisBox(W,H,{top:40,right:40,bottom:70,left:80});
 
-  // all 48 points — we'll read from an embedded dataset
-  // generate from A8/R5 csv data — inline subset of 48 points (f1,mcc,passed)
-  const pts = THESIS_SCATTER_48;
+  // points from figures-data.js (v3.1: 60 configs, 23 passed including native)
+  const pts = f.data || window.THESIS_SCATTER_48 || [];
 
   let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
   // axes
@@ -192,7 +191,9 @@ function scatter_filter(f){
     const color = p.passed ? ACCENT : INK_MUTE;
     const r = p.passed ? 7 : 5;
     const op = p.passed ? 0.85 : 0.45;
-    s+=`<circle cx="${X(p.f1)}" cy="${Y(p.mcc)}" r="${r}" fill="${color}" opacity="${op}" stroke="${p.passed?'#fff':'none'}" stroke-width="${p.passed?1.2:0}"/>`;
+    const stroke = p.passed && p.native ? INK : (p.passed?'#fff':'none');
+    const sw = p.passed && p.native ? 1.5 : (p.passed?1.2:0);
+    s+=`<circle cx="${X(p.f1)}" cy="${Y(p.mcc)}" r="${r}" fill="${color}" opacity="${op}" stroke="${stroke}" stroke-width="${sw}"/>`;
   });
 
   // axis titles
@@ -202,10 +203,17 @@ function scatter_filter(f){
   // legend
   const lgx = A.x+A.w-220, lgy=A.y+30;
   s+=`<rect x="${lgx-8}" y="${lgy-16}" width="210" height="60" fill="${BG_ALT}" stroke="${RULE}"/>`;
+  const _passed = pts.filter(p=>p.passed).length;
+  const _failed = pts.length - _passed;
+  const _native = pts.filter(p=>p.native).length;
   s+=`<circle cx="${lgx+6}" cy="${lgy}" r="7" fill="${ACCENT}"/>`;
-  s+=`<text class="legend-t" x="${lgx+22}" y="${lgy+4}">Aprobadas (17)</text>`;
+  s+=`<text class="legend-t" x="${lgx+22}" y="${lgy+4}">Aprobadas (${_passed})</text>`;
   s+=`<circle cx="${lgx+6}" cy="${lgy+22}" r="5" fill="${INK_MUTE}"/>`;
-  s+=`<text class="legend-t" x="${lgx+22}" y="${lgy+26}">Rechazadas (31)</text>`;
+  s+=`<text class="legend-t" x="${lgx+22}" y="${lgy+26}">Rechazadas (${_failed})</text>`;
+  if(_native){
+    s+=`<circle cx="${lgx+6}" cy="${lgy+44}" r="7" fill="${ACCENT}" stroke="${INK}" stroke-width="1.5"/>`;
+    s+=`<text class="legend-t" x="${lgx+22}" y="${lgy+48}">Nativo 1:30 (${_native})</text>`;
+  }
 
   s+=`</svg>`;
   return s;
@@ -213,10 +221,10 @@ function scatter_filter(f){
 
 /* ---------- Chart: ranked summary table (R6) ---------- */
 function ranked_table(f){
-  const W=1100, H=620;
+  const W=1100, H=820;
   const rows = f.rows;
-  const colX = {s:40, a:120, b:230, f1:370, mcc:530, sp:690};
-  const rowH = 30;
+  const colX = {s:40, a:160, b:280, f1:420, mcc:580, sp:740};
+  const rowH = Math.min(28, (H-80)/rows.length);
   const headerY = 46;
   const startY = headerY+18;
   const barW = 120;
@@ -241,6 +249,7 @@ function ranked_table(f){
     const y = startY + i*rowH;
     if(r.hl) s+=`<rect x="20" y="${y-16}" width="${W-40}" height="${rowH}" fill="${HL}"/>`;
     if(r.danger) s+=`<rect x="20" y="${y-16}" width="${W-40}" height="${rowH}" fill="${BG_ALT}"/>`;
+    if(r.native) s+=`<rect x="20" y="${y-16}" width="4" height="${rowH}" fill="${ACCENT}"/>`;
     s+=`<text x="${colX.s}" y="${y+4}" font-family="JetBrains Mono" font-size="13" fill="${INK}">${r.s}</text>`;
     s+=`<text x="${colX.a}" y="${y+4}" font-family="Source Sans 3" font-size="13" fill="${INK}" font-weight="500">${r.a}</text>`;
     const balLbl = r.b==="focal_loss"?"focal loss":r.b==="class_weighting"?"class weight.":"sin balanceo";
@@ -887,6 +896,62 @@ window.THESIS_SCATTER_48 = [
   {f1:0.2549,mcc:0.2362,passed:false},{f1:0.3097,mcc:0.2971,passed:true}, {f1:0.0000,mcc:0.0000,passed:false}
 ];
 
+/* ---------- A11: native vs forced (errorbars with native highlight) ---------- */
+function native_vs_forced(f){
+  const W=1100, H=560;
+  const A=axisBox(W,H,{top:40,right:40,bottom:90,left:80});
+  const ymin=0, ymax=0.85;
+  const Y = v => A.y + A.h - ((v-ymin)/(ymax-ymin))*A.h;
+  const colW = A.w / f.data.length;
+
+  let s = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  [0,0.2,0.4,0.6,0.8].forEach(t=>{
+    s+=`<line class="gridline" x1="${A.x}" y1="${Y(t)}" x2="${A.x+A.w}" y2="${Y(t)}"/>`;
+    s+=`<text class="ax-label" x="${A.x-10}" y="${Y(t)+4}" text-anchor="end">${t.toFixed(1)}</text>`;
+  });
+  s+=`<line class="ax-line" x1="${A.x}" y1="${A.y+A.h}" x2="${A.x+A.w}" y2="${A.y+A.h}"/>`;
+  s+=`<line class="ax-line" x1="${A.x}" y1="${A.y}" x2="${A.x}" y2="${A.y+A.h}"/>`;
+
+  f.data.forEach((d,i)=>{
+    const cx = A.x + i*colW + colW/2;
+    const bw = Math.min(80, colW*0.55);
+    const top = Y(d.mean);
+    const bottom = A.y+A.h;
+    let fill = SUPPORT;
+    if(d.native) fill = ACCENT;
+    else if(d.highlight) fill = ACCENT_SOFT;
+    else if(d.danger) fill = INK_MUTE;
+    s+=`<rect x="${cx-bw/2}" y="${top}" width="${bw}" height="${bottom-top}" fill="${fill}" opacity="${d.native?0.9:0.75}"${d.native?' stroke="'+INK+'" stroke-width="2"':''}/>`;
+    if(d.native){
+      for(let yp=top+5; yp<bottom; yp+=10){
+        s+=`<line x1="${cx-bw/2}" y1="${yp}" x2="${cx-bw/2+Math.min(bw,bottom-yp)}" y2="${yp+Math.min(bw,bottom-yp)}" stroke="${INK}" stroke-width="0.8" opacity="0.25"/>`;
+      }
+    }
+    const errTop = Y(d.mean + d.std);
+    const errBot = Y(Math.max(0, d.mean - d.std));
+    s+=`<line x1="${cx}" y1="${errTop}" x2="${cx}" y2="${errBot}" stroke="${INK}" stroke-width="1.5"/>`;
+    s+=`<line x1="${cx-16}" y1="${errTop}" x2="${cx+16}" y2="${errTop}" stroke="${INK}" stroke-width="1.5"/>`;
+    s+=`<line x1="${cx-16}" y1="${errBot}" x2="${cx+16}" y2="${errBot}" stroke="${INK}" stroke-width="1.5"/>`;
+    s+=`<text x="${cx}" y="${top-8}" text-anchor="middle" font-family="JetBrains Mono" font-size="13" font-weight="600" fill="${INK}">${d.mean.toFixed(3)}</text>`;
+    s+=`<text class="cat-label" x="${cx}" y="${A.y+A.h+24}" text-anchor="middle"${d.native?' fill="'+ACCENT+'" font-weight="700"':''}>${d.label}</text>`;
+    s+=`<text class="ax-label" x="${cx}" y="${A.y+A.h+42}" text-anchor="middle">n=${d.n}</text>`;
+  });
+
+  s+=`<text class="ax-title" x="${A.x+A.w/2}" y="${H-14}" text-anchor="middle">${f.xAxisLabel||''}</text>`;
+  s+=`<text class="ax-title" x="22" y="${A.y+A.h/2}" text-anchor="middle" transform="rotate(-90 22 ${A.y+A.h/2})">${f.yAxisLabel||''}</text>`;
+
+  // legend
+  const lgx=A.x+A.w-220, lgy=A.y+16;
+  s+=`<rect x="${lgx-8}" y="${lgy-12}" width="220" height="52" fill="${BG_ALT}" stroke="${RULE}"/>`;
+  s+=`<rect x="${lgx}" y="${lgy-2}" width="20" height="10" fill="${SUPPORT}" opacity="0.75"/>`;
+  s+=`<text class="legend-t" x="${lgx+28}" y="${lgy+6}">Escenarios forzados</text>`;
+  s+=`<rect x="${lgx}" y="${lgy+18}" width="20" height="10" fill="${ACCENT}" opacity="0.9" stroke="${INK}" stroke-width="1.5"/>`;
+  s+=`<text class="legend-t" x="${lgx+28}" y="${lgy+26}" font-weight="700" fill="${ACCENT}">Escenario nativo</text>`;
+
+  s+=`</svg>`;
+  return s;
+}
+
 /* ============================================================
    Render
    ============================================================ */
@@ -895,7 +960,7 @@ const RENDERERS = {
   strip_by_explainer, errorbars, quadrants, jaccard_histogram,
   boxplot, effect_sizes, pg_degeneration, ranked_bars,
   sota_bars, peak_collapse, recommendation_matrix, stacked_hours,
-  quadrants_labeled
+  quadrants_labeled, native_vs_forced
 };
 
 function renderAll(){

@@ -401,13 +401,258 @@ function jaccard_histogram(f){
   s+=`</svg>`;return s;
 }
 
+/* ---- scatter_filter (R5) — F1 vs MCC with threshold region ---- */
+function scatter_filter(f){
+  const W=1100,H=620,A=axisBox(W,H,{top:40,right:60,bottom:90,left:120});
+  const xmin=-0.05, xmax=0.6, ymin=-0.05, ymax=0.6;
+  const X=v=>A.x+((v-xmin)/(xmax-xmin))*A.w;
+  const Y=v=>A.y+A.h-((v-ymin)/(ymax-ymin))*A.h;
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // grid + axis labels
+  [0,0.1,0.2,0.3,0.4,0.5,0.6].forEach(t=>{
+    s+=`<line x1="${X(t)}" y1="${A.y}" x2="${X(t)}" y2="${A.y+A.h}" stroke="${RULE}" stroke-width="1" stroke-dasharray="3 4"/>`;
+    s+=`<line x1="${A.x}" y1="${Y(t)}" x2="${A.x+A.w}" y2="${Y(t)}" stroke="${RULE}" stroke-width="1" stroke-dasharray="3 4"/>`;
+    s+=`<text x="${X(t)}" y="${A.y+A.h+30}" text-anchor="middle" font-size="22" fill="${INK_MUTE}" font-family="var(--ff-sans)">${t.toFixed(1)}</text>`;
+    s+=`<text x="${A.x-14}" y="${Y(t)+8}" text-anchor="end" font-size="22" fill="${INK_MUTE}" font-family="var(--ff-sans)">${t.toFixed(1)}</text>`;
+  });
+
+  // region shading
+  s+=`<rect x="${X(f.thresholdX)}" y="${A.y}" width="${A.x+A.w-X(f.thresholdX)}" height="${Y(f.thresholdY)-A.y}" fill="${HL}" opacity="0.55"/>`;
+  // thresholds
+  s+=`<line x1="${X(f.thresholdX)}" y1="${A.y}" x2="${X(f.thresholdX)}" y2="${A.y+A.h}" stroke="${ACCENT}" stroke-width="2" stroke-dasharray="6 5"/>`;
+  s+=`<line x1="${A.x}" y1="${Y(f.thresholdY)}" x2="${A.x+A.w}" y2="${Y(f.thresholdY)}" stroke="${ACCENT}" stroke-width="2" stroke-dasharray="6 5"/>`;
+  s+=`<text x="${X(f.thresholdX)+10}" y="${A.y+24}" font-size="20" fill="${ACCENT}" font-family="var(--ff-sans)" font-weight="600" letter-spacing="0.08em">F1 ≥ ${f.thresholdX}</text>`;
+  s+=`<text x="${A.x+A.w-10}" y="${Y(f.thresholdY)-10}" text-anchor="end" font-size="20" fill="${ACCENT}" font-family="var(--ff-sans)" font-weight="600" letter-spacing="0.08em">MCC ≥ ${f.thresholdY}</text>`;
+
+  // axes
+  s+=`<line x1="${A.x}" y1="${A.y+A.h}" x2="${A.x+A.w}" y2="${A.y+A.h}" stroke="${INK}" stroke-width="2"/>`;
+  s+=`<line x1="${A.x}" y1="${A.y}" x2="${A.x}" y2="${A.y+A.h}" stroke="${INK}" stroke-width="2"/>`;
+
+  // points
+  const pts = f.data || [];
+  pts.forEach(p=>{
+    const color = p.passed ? (p.native?ACCENT:ACCENT) : INK_MUTE;
+    const r = p.passed ? 9 : 6;
+    const op = p.passed ? 0.9 : 0.45;
+    const stroke = p.native && p.passed ? INK : (p.passed?'#fff':'none');
+    const sw = p.native && p.passed ? 2 : (p.passed?1.5:0);
+    s+=`<circle cx="${X(p.f1)}" cy="${Y(p.mcc)}" r="${r}" fill="${color}" opacity="${op}" stroke="${stroke}" stroke-width="${sw}"/>`;
+  });
+
+  // axis titles
+  s+=`<text x="${A.x+A.w/2}" y="${H-18}" text-anchor="middle" font-size="24" fill="${INK_SOFT}" font-family="var(--ff-sans)">${f.xAxisLabel||''}</text>`;
+  s+=`<text transform="rotate(-90 34 ${A.y+A.h/2})" x="34" y="${A.y+A.h/2}" text-anchor="middle" font-size="24" fill="${INK_SOFT}" font-family="var(--ff-sans)">${f.yAxisLabel||''}</text>`;
+
+  // legend
+  const passed = pts.filter(p=>p.passed).length;
+  const failed = pts.length - passed;
+  const nativeCount = pts.filter(p=>p.native).length;
+  const lgx=A.x+A.w-300, lgy=A.y+50;
+  s+=`<rect x="${lgx-14}" y="${lgy-30}" width="290" height="${nativeCount?110:78}" fill="${BG_ALT}" stroke="${RULE}" stroke-width="1.5"/>`;
+  s+=`<circle cx="${lgx+4}" cy="${lgy}" r="9" fill="${ACCENT}"/>`;
+  s+=`<text x="${lgx+24}" y="${lgy+7}" font-size="20" fill="${INK}" font-family="var(--ff-sans)">Aprobadas (${passed})</text>`;
+  s+=`<circle cx="${lgx+4}" cy="${lgy+30}" r="7" fill="${INK_MUTE}"/>`;
+  s+=`<text x="${lgx+24}" y="${lgy+37}" font-size="20" fill="${INK}" font-family="var(--ff-sans)">Rechazadas (${failed})</text>`;
+  if(nativeCount){
+    s+=`<circle cx="${lgx+4}" cy="${lgy+60}" r="9" fill="${ACCENT}" stroke="${INK}" stroke-width="2"/>`;
+    s+=`<text x="${lgx+24}" y="${lgy+67}" font-size="20" fill="${INK}" font-family="var(--ff-sans)">Nativo 1:30 (${nativeCount})</text>`;
+  }
+
+  s+=`</svg>`;return s;
+}
+
+/* ---- ranked_table (R6) — summary table with bars per row ---- */
+function ranked_table(f){
+  const W=1280, H=920;
+  const rows = f.rows;
+  const colX = {s:50, a:220, b:340, f1:480, mcc:670, sp:860};
+  const rowH = Math.min(32, (H-100)/rows.length);
+  const headerY = 50;
+  const startY = headerY+26;
+  const barW = 150;
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // headers
+  const hdrs = [
+    {x:colX.s,  t:"ESCENARIO"},
+    {x:colX.a,  t:"ARQUIT."},
+    {x:colX.b,  t:"BALANCEO"},
+    {x:colX.f1, t:"F1 VAL"},
+    {x:colX.mcc,t:"MCC"},
+    {x:colX.sp, t:"SPEARMAN (GNNExp.)"}
+  ];
+  hdrs.forEach(h=>{
+    s+=`<text x="${h.x}" y="${headerY}" font-size="18" letter-spacing="0.14em" fill="${ACCENT}" font-family="var(--ff-sans)" font-weight="600">${h.t}</text>`;
+  });
+  s+=`<line x1="30" y1="${headerY+12}" x2="${W-30}" y2="${headerY+12}" stroke="${INK}" stroke-width="2"/>`;
+
+  rows.forEach((r,i)=>{
+    const y = startY + i*rowH;
+    if(r.hl) s+=`<rect x="30" y="${y-20}" width="${W-60}" height="${rowH}" fill="${HL}"/>`;
+    if(r.danger) s+=`<rect x="30" y="${y-20}" width="${W-60}" height="${rowH}" fill="${BG_ALT}"/>`;
+    if(r.native) s+=`<rect x="30" y="${y-20}" width="6" height="${rowH}" fill="${ACCENT}"/>`;
+    s+=`<text x="${colX.s}" y="${y+6}" font-family="var(--ff-mono)" font-size="18" fill="${INK}">${r.s}</text>`;
+    s+=`<text x="${colX.a}" y="${y+6}" font-family="var(--ff-sans)" font-size="20" fill="${INK}" font-weight="600">${r.a}</text>`;
+    const balLbl = r.b==="focal_loss"?"focal loss":r.b==="class_weighting"?"class weight.":"sin balanceo";
+    s+=`<text x="${colX.b}" y="${y+6}" font-family="var(--ff-sans)" font-size="18" fill="${INK_SOFT}">${balLbl}</text>`;
+
+    // f1 bar
+    const f1w = (r.f1/0.55)*barW;
+    s+=`<rect x="${colX.f1}" y="${y-12}" width="${f1w}" height="22" fill="${SUPPORT2}" opacity="0.55"/>`;
+    s+=`<text x="${colX.f1+f1w+8}" y="${y+6}" font-family="var(--ff-mono)" font-size="18" fill="${INK}">${r.f1.toFixed(3)}</text>`;
+
+    // mcc bar
+    const mw = (r.mcc/0.55)*barW;
+    s+=`<rect x="${colX.mcc}" y="${y-12}" width="${mw}" height="22" fill="${SUPPORT}" opacity="0.55"/>`;
+    s+=`<text x="${colX.mcc+mw+8}" y="${y+6}" font-family="var(--ff-mono)" font-size="18" fill="${INK}">${r.mcc.toFixed(3)}</text>`;
+
+    // spearman bar
+    const spColor = r.sp>0.6?ACCENT:r.sp>0.4?ACCENT_SOFT:INK_MUTE;
+    const spw = (r.sp/0.85)*(barW+120);
+    s+=`<rect x="${colX.sp}" y="${y-12}" width="${spw}" height="22" fill="${spColor}" opacity="0.8"/>`;
+    s+=`<text x="${colX.sp+spw+8}" y="${y+6}" font-family="var(--ff-mono)" font-size="18" fill="${INK}" font-weight="600">${r.sp.toFixed(3)}</text>`;
+
+    if(i<rows.length-1) s+=`<line x1="30" y1="${y+rowH-20}" x2="${W-30}" y2="${y+rowH-20}" stroke="${RULE}" stroke-width="0.8" opacity="0.6"/>`;
+  });
+
+  s+=`</svg>`;return s;
+}
+
+/* ---- boxplot (A7) — quartiles with points + Kruskal-Wallis panel ---- */
+function boxplot(f){
+  const W=1100,H=620,A=axisBox(W,H,{top:50,right:280,bottom:100,left:120});
+  const ymin=0, ymax=0.9;
+  const Y=v=>A.y+A.h-((v-ymin)/(ymax-ymin))*A.h;
+  const colW=A.w/f.data.length;
+
+  function quartiles(vals){
+    const v=[...vals].sort((a,b)=>a-b);
+    if(v.length===1) return {q1:v[0], q2:v[0], q3:v[0], min:v[0], max:v[0]};
+    const q2 = v.length%2 ? v[(v.length-1)/2] : (v[v.length/2-1]+v[v.length/2])/2;
+    const lower = v.slice(0, Math.floor(v.length/2));
+    const upper = v.slice(Math.ceil(v.length/2));
+    const med = arr => arr.length%2 ? arr[(arr.length-1)/2] : (arr[arr.length/2-1]+arr[arr.length/2])/2;
+    return {q1:med(lower), q2, q3:med(upper), min:v[0], max:v[v.length-1]};
+  }
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  [0,0.2,0.4,0.6,0.8].forEach(t=>{
+    s+=`<line x1="${A.x}" y1="${Y(t)}" x2="${A.x+A.w}" y2="${Y(t)}" stroke="${RULE}" stroke-width="1" stroke-dasharray="3 4"/>`;
+    s+=`<text x="${A.x-14}" y="${Y(t)+8}" text-anchor="end" font-size="22" fill="${INK_MUTE}" font-family="var(--ff-sans)">${t.toFixed(1)}</text>`;
+  });
+  s+=`<line x1="${A.x}" y1="${A.y+A.h}" x2="${A.x+A.w}" y2="${A.y+A.h}" stroke="${INK}" stroke-width="2"/>`;
+  s+=`<line x1="${A.x}" y1="${A.y}" x2="${A.x}" y2="${A.y+A.h}" stroke="${INK}" stroke-width="2"/>`;
+
+  f.data.forEach((d,i)=>{
+    const cx = A.x + i*colW + colW/2;
+    const bw = 90;
+    const q = quartiles(d.values);
+    // whiskers
+    s+=`<line x1="${cx}" y1="${Y(q.min)}" x2="${cx}" y2="${Y(q.max)}" stroke="${INK}" stroke-width="2"/>`;
+    s+=`<line x1="${cx-28}" y1="${Y(q.min)}" x2="${cx+28}" y2="${Y(q.min)}" stroke="${INK}" stroke-width="2"/>`;
+    s+=`<line x1="${cx-28}" y1="${Y(q.max)}" x2="${cx+28}" y2="${Y(q.max)}" stroke="${INK}" stroke-width="2"/>`;
+    if(d.values.length>1){
+      const y1=Math.min(Y(q.q1),Y(q.q3)), h=Math.abs(Y(q.q3)-Y(q.q1));
+      s+=`<rect x="${cx-bw/2}" y="${y1}" width="${bw}" height="${h}" fill="${ACCENT_SOFT}" opacity="0.45" stroke="${ACCENT}" stroke-width="2"/>`;
+      s+=`<line x1="${cx-bw/2}" y1="${Y(q.q2)}" x2="${cx+bw/2}" y2="${Y(q.q2)}" stroke="${ACCENT}" stroke-width="4"/>`;
+    }
+    d.values.forEach((v,k)=>{
+      const jitter=((k*23)%100)/100 - 0.5;
+      s+=`<circle cx="${cx+jitter*50}" cy="${Y(v)}" r="6" fill="${INK}" opacity="0.55"/>`;
+    });
+    s+=`<text x="${cx}" y="${A.y+A.h+34}" text-anchor="middle" font-size="24" fill="${INK}" font-family="var(--ff-sans)" font-weight="600">${d.label}</text>`;
+    s+=`<text x="${cx}" y="${A.y+A.h+58}" text-anchor="middle" font-size="18" fill="${INK_MUTE}" font-family="var(--ff-sans)">n=${d.values.length}</text>`;
+  });
+
+  // stats panel (Kruskal-Wallis)
+  if(f.stats){
+    const px=A.x+A.w+30, py=A.y+60;
+    s+=`<rect x="${px-16}" y="${py-36}" width="250" height="180" fill="${BG_ALT}" stroke="${RULE}" stroke-width="1.5"/>`;
+    s+=`<text x="${px}" y="${py-10}" font-family="var(--ff-sans)" font-size="16" letter-spacing="0.18em" fill="${ACCENT}" font-weight="600">KRUSKAL–WALLIS</text>`;
+    s+=`<text x="${px}" y="${py+30}" font-family="var(--ff-serif)" font-size="38" font-weight="600" fill="${INK}">H = ${f.stats.H.toFixed(2)}</text>`;
+    s+=`<text x="${px}" y="${py+70}" font-family="var(--ff-serif)" font-size="38" font-weight="600" fill="${INK}">p = ${f.stats.p.toFixed(3)}</text>`;
+    s+=`<text x="${px}" y="${py+105}" font-family="var(--ff-sans)" font-size="18" fill="${INK_SOFT}">No significativo (α=0.05)</text>`;
+  }
+
+  s+=`<text transform="rotate(-90 34 ${A.y+A.h/2})" x="34" y="${A.y+A.h/2}" text-anchor="middle" font-size="24" fill="${INK_SOFT}" font-family="var(--ff-sans)">${f.yAxisLabel||''}</text>`;
+  s+=`</svg>`;return s;
+}
+
+/* ---- native_vs_forced (A11) — errorbars with native visually distinguished ---- */
+function native_vs_forced(f){
+  const W=1100,H=620,A=axisBox(W,H,{top:40,right:60,bottom:110,left:120});
+  const ymin=0, ymax=0.85;
+  const Y=v=>A.y+A.h-((v-ymin)/(ymax-ymin))*A.h;
+  const colW=A.w/f.data.length;
+
+  let s=`<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+
+  // grid
+  [0,0.2,0.4,0.6,0.8].forEach(t=>{
+    s+=`<line x1="${A.x}" y1="${Y(t)}" x2="${A.x+A.w}" y2="${Y(t)}" stroke="${RULE}" stroke-width="1" stroke-dasharray="3 4"/>`;
+    s+=`<text x="${A.x-14}" y="${Y(t)+8}" text-anchor="end" font-size="22" fill="${INK_MUTE}" font-family="var(--ff-sans)">${t.toFixed(1)}</text>`;
+  });
+  s+=`<line x1="${A.x}" y1="${A.y+A.h}" x2="${A.x+A.w}" y2="${A.y+A.h}" stroke="${INK}" stroke-width="2"/>`;
+  s+=`<line x1="${A.x}" y1="${A.y}" x2="${A.x}" y2="${A.y+A.h}" stroke="${INK}" stroke-width="2"/>`;
+
+  f.data.forEach((d,i)=>{
+    const cx = A.x + i*colW + colW/2;
+    const bw = Math.min(120, colW*0.58);
+    const top = Y(d.mean);
+    const bottom = A.y+A.h;
+    // color: native -> ACCENT; highlight -> ACCENT_SOFT on top of SUPPORT; otherwise SUPPORT
+    let fill = SUPPORT;
+    if(d.native) fill = ACCENT;
+    else if(d.highlight) fill = ACCENT_SOFT;
+    else if(d.danger) fill = INK_MUTE;
+    // bar
+    s+=`<rect x="${cx-bw/2}" y="${top}" width="${bw}" height="${bottom-top}" fill="${fill}" opacity="${d.native?0.9:0.75}"${d.native?' stroke="'+INK+'" stroke-width="3"':''}/>`;
+    // native hatch pattern overlay — diagonal stripes for visual distinction
+    if(d.native){
+      for(let yp=top+8; yp<bottom; yp+=16){
+        s+=`<line x1="${cx-bw/2}" y1="${yp}" x2="${cx-bw/2+Math.min(bw,bottom-yp)}" y2="${yp+Math.min(bw,bottom-yp)}" stroke="${INK}" stroke-width="1.2" opacity="0.25"/>`;
+      }
+    }
+    // error bar (std)
+    const errTop = Y(d.mean + d.std);
+    const errBot = Y(Math.max(0, d.mean - d.std));
+    s+=`<line x1="${cx}" y1="${errTop}" x2="${cx}" y2="${errBot}" stroke="${INK}" stroke-width="2.5"/>`;
+    s+=`<line x1="${cx-24}" y1="${errTop}" x2="${cx+24}" y2="${errTop}" stroke="${INK}" stroke-width="2.5"/>`;
+    s+=`<line x1="${cx-24}" y1="${errBot}" x2="${cx+24}" y2="${errBot}" stroke="${INK}" stroke-width="2.5"/>`;
+    // mean value label above bar
+    s+=`<text x="${cx}" y="${top-14}" text-anchor="middle" font-size="22" fill="${INK}" font-family="var(--ff-mono)" font-weight="600">${d.mean.toFixed(3)}</text>`;
+    // x label
+    const labelColor = d.native ? ACCENT : INK;
+    const labelWeight = d.native ? 700 : 600;
+    s+=`<text x="${cx}" y="${A.y+A.h+36}" text-anchor="middle" font-size="22" fill="${labelColor}" font-family="var(--ff-sans)" font-weight="${labelWeight}">${d.label}</text>`;
+    s+=`<text x="${cx}" y="${A.y+A.h+60}" text-anchor="middle" font-size="18" fill="${INK_MUTE}" font-family="var(--ff-sans)">n=${d.n}</text>`;
+  });
+
+  // axis labels
+  s+=`<text x="${A.x+A.w/2}" y="${H-20}" text-anchor="middle" font-size="24" fill="${INK_SOFT}" font-family="var(--ff-sans)">${f.xAxisLabel||''}</text>`;
+  s+=`<text transform="rotate(-90 34 ${A.y+A.h/2})" x="34" y="${A.y+A.h/2}" text-anchor="middle" font-size="24" fill="${INK_SOFT}" font-family="var(--ff-sans)">${f.yAxisLabel||''}</text>`;
+
+  // legend
+  const lgx=A.x+A.w-330, lgy=A.y+30;
+  s+=`<rect x="${lgx-14}" y="${lgy-24}" width="320" height="80" fill="${BG_ALT}" stroke="${RULE}" stroke-width="1.5"/>`;
+  s+=`<rect x="${lgx+2}" y="${lgy-6}" width="28" height="14" fill="${SUPPORT}" opacity="0.75"/>`;
+  s+=`<text x="${lgx+38}" y="${lgy+6}" font-size="20" fill="${INK}" font-family="var(--ff-sans)">Escenarios forzados</text>`;
+  s+=`<rect x="${lgx+2}" y="${lgy+22}" width="28" height="14" fill="${ACCENT}" opacity="0.9" stroke="${INK}" stroke-width="2"/>`;
+  s+=`<text x="${lgx+38}" y="${lgy+34}" font-size="20" fill="${ACCENT}" font-family="var(--ff-sans)" font-weight="700">Escenario nativo (paradoja)</text>`;
+
+  s+=`</svg>`;return s;
+}
+
 /* ---- generic fallback ---- */
 function fallback(id){return `<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="500" fill="#F7F2E7"/><text x="400" y="250" text-anchor="middle" font-size="28" fill="#8B867B">Figura ${id}</text></svg>`;}
 
 const RENDERERS = {
   bars_h, bars_h_n, heatmap, peak_collapse, quadrants, quadrants_labeled,
   strip_by_explainer, errorbars, sota_bars, pg_degeneration, ranked_bars,
-  recommendation_matrix, stacked_hours, effect_sizes, jaccard_histogram
+  recommendation_matrix, stacked_hours, effect_sizes, jaccard_histogram,
+  scatter_filter, ranked_table, boxplot, native_vs_forced
 };
 
 window.renderFig = function(id){
