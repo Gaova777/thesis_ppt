@@ -1,0 +1,1724 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Sustentación — Estabilidad XAI en GNNs · Elliptic Dataset</title>
+<meta name="viewport" content="width=1920" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+
+<script type="application/json" id="speaker-notes">
+[
+"— ALEJANDRO — Muy buenos días honorables jurados. Mi nombre es Alejandro Gómez Huertas y junto con mi compañero Juan Diego Garzón Ovalle, bajo la dirección del doctor Cristian Rosero Arias, presentamos los resultados de nuestra tesis de maestría. Hemos estudiado un problema concreto: cuando se aplican métodos de inteligencia artificial explicable sobre redes neuronales de grafos para detectar lavado de dinero en Bitcoin, las explicaciones se vuelven inestables bajo condiciones de desbalance de clases. Vamos a mostrar qué tan grande es esa degradación y qué configuraciones la mitigan mejor.",
+
+"— JUAN DIEGO — Permítanme ubicarlos en cifras. El lavado de dinero moviliza anualmente entre el 2% y el 5% del PIB mundial, es decir, hasta dos billones de dólares. En cripto el crecimiento es exponencial: en 2020 las estimaciones hablaban de 1.3 mil millones, en 2022 ya eran 23.8 mil millones. Y frente a esa magnitud, las autoridades solo interceptan menos del 1% de los flujos. El sistema actual falla por ambos lados.",
+
+"— ALEJANDRO — El problema operativo de los sistemas basados en reglas es claro: entre el 95 y el 98 por ciento de las alertas son falsos positivos, y el costo global de cumplimiento AML ya supera los 180 mil millones de dólares anuales. La alternativa son las Graph Neural Networks: modelan cada transacción como un nodo, cada flujo de dinero como una arista dirigida, y capturan la estructura relacional que las reglas y los métodos tabulares ignoran.",
+
+"— JUAN DIEGO — Pero hay una tensión regulatoria. En AML cada alerta debe justificarse ante auditores, reguladores, incluso ante cortes. Las GNN son cajas negras. Por eso se usa XAI: GNNExplainer, PGExplainer, SHAP. Ahí surge nuestra pregunta de investigación. No basta con que la predicción sea precisa. Si la explicación que justifica una alerta hoy es distinta de la que se genera mañana con otra semilla, o tras una perturbación mínima, el sistema no es auditable. La estabilidad de la explicación es, literalmente, la condición de posibilidad para desplegar estos modelos.",
+
+"— ALEJANDRO — Nuestra pregunta central: cómo cuantificar la degradación de la estabilidad de los métodos XAI sobre GNNs aplicadas al Elliptic Dataset bajo desbalance, y qué combinación de arquitectura, explicador y técnica de balanceo la optimiza. Los objetivos específicos se agrupan en cuatro: cuantificar la degradación con métricas formales, comparar la robustez entre arquitecturas GNN, evaluar el impacto de técnicas de balanceo, y construir una matriz de recomendación operativa.",
+
+"— JUAN DIEGO — Pasemos al marco conceptual. Las GNN operan bajo el paradigma de paso de mensajes: cada nodo recoge información de sus vecinos, la agrega, y actualiza su representación. Con k capas, cada nodo incorpora contexto a k saltos. Esto es exactamente lo que necesitamos para capturar patrones de lavado como fan-out, mixing, o cadenas de capas.",
+
+"— ALEJANDRO — Evaluamos cuatro arquitecturas representativas. GCN usa promedio ponderado; GraphSAGE muestrea vecinos y permite inducción; GAT introduce atención dinámica, ponderando cada vecino; TAGCN usa filtros polinomiales de orden K que capturan múltiples escalas topológicas en una sola capa. He y colaboradores en 2026 mostraron que TAGCN alcanza el mejor rendimiento sobre Elliptic con MCC de 0.89 y además concentra mejor las atribuciones SHAP.",
+
+"— JUAN DIEGO — Sobre estas arquitecturas aplicamos tres métodos XAI con naturalezas muy distintas. GNNExplainer optimiza una máscara por instancia: es flexible pero su optimización no convexa produce inestabilidad. PGExplainer entrena una red generadora compartida: es más consistente entre nodos pero hereda la estocasticidad del entrenamiento. SHAP, aquí en su variante GNNShap, se basa en teoría de juegos cooperativos: tiene garantías axiomáticas pero sus aproximaciones muestrales introducen varianza. Son tres familias con tres perfiles de estabilidad diferentes.",
+
+"— ALEJANDRO — La estabilidad la medimos con tres métricas complementarias. Índice de Jaccard sobre subgrafos explicativos: mide la intersección de aristas explicativas entre ejecuciones. Correlación de Spearman sobre rankings de features: evalúa si el orden de importancia se preserva. Y SHAP Concentration, propuesta por He y colaboradores: cuantifica qué tan parsimoniosa es la explicación. Las tres responden a preguntas diferentes y juntas dan la imagen completa.",
+
+"— JUAN DIEGO — Nuestra metodología. Diseño factorial completo: cuatro escenarios de desbalance de uno a uno hasta uno a cien, cuatro arquitecturas, tres técnicas de balanceo y tres explicadores. Eso da 144 configuraciones únicas. Cada configuración se replica veinte veces con semillas distintas para estimar distribuciones empíricas de estabilidad. Esto nos permite reportar intervalos de confianza y hacer ANOVA factorial riguroso. El experimento se distribuyó en tres máquinas con GPU; los resultados se consolidan con tracking MLflow y escritura atómica a CSV.",
+
+"— ALEJANDRO — El Elliptic Dataset: 203.769 transacciones, 234.355 aristas dirigidas, 49 pasos temporales, 166 features por nodo. El desbalance es real, no sintético: las ilícitas son el 9.8% del subconjunto etiquetado, menos del 2% del total. Y este desbalance no es uniforme en el tiempo: como pueden ver en la figura, hay ventanas temporales donde la clase ilícita casi desaparece. Ese detalle justifica por qué no basta con un ratio global: construimos escenarios controlados uno a diez, uno a cincuenta, uno a cien.",
+
+"— JUAN DIEGO — Primer bloque de resultados: rendimiento predictivo. TAGCN mantiene desempeño robusto incluso en uno a cien, con MCC alrededor de 0.78. GCN colapsa en uno a cincuenta y uno a cien, confirmando lo reportado por Lawal y colaboradores. GraphSAGE y GAT presentan comportamiento intermedio. La lectura operativa es que no cualquier arquitectura sobrevive el desbalance: TAGCN y en menor medida GAT son las viables.",
+
+"— ALEJANDRO — Segundo bloque: la degradación de la estabilidad medida por Jaccard. Aquí está el hallazgo central. En escenarios balanceados, GNNExplainer mantiene Jaccard alrededor de 0.7. A medida que el desbalance crece, el Jaccard cae precipitadamente: en uno a cien apenas llega a 0.25. Es decir, los subgrafos explicativos entre ejecuciones consecutivas comparten apenas una cuarta parte de sus aristas. PGExplainer degrada menos, pero también cae. SHAP es el más estable en rankings pero sus subgrafos derivados también se dispersan.",
+
+"— JUAN DIEGO — Tercer bloque: impacto de las técnicas de balanceo. Focal loss y class weighting mejoran métricas predictivas pero su efecto sobre la estabilidad es ambiguo. Focal loss estabiliza Jaccard en TAGCN pero introduce distorsiones en GNNExplainer sobre GCN. Class weighting tiene un efecto modesto. Y lo más importante: ninguna técnica de balanceo salva a GCN del colapso en desbalances extremos. Son condición necesaria pero no suficiente.",
+
+"— ALEJANDRO — Cuarto bloque: SHAP Concentration. TAGCN concentra las atribuciones en aproximadamente el 15% superior de features; GCN las dispersa entre más del 40%. Esta métrica responde directamente a la pregunta operativa: ¿en cuántas variables debe enfocarse el analista? TAGCN exige verificar pocos factores; GCN exige revisar muchos, lo cual en la práctica es inauditable.",
+
+"— JUAN DIEGO — Resultado integrador: la matriz de recomendación. Para desbalances moderados, hasta uno a diez, cualquier arquitectura con focal loss ofrece estabilidad aceptable. Para desbalances extremos, solo TAGCN combinado con focal loss y SHAP mantiene simultáneamente F1 mayor a 0.80, MCC mayor a 0.70 y Jaccard mayor a 0.60. Esa es nuestra tríada recomendada para despliegue regulado.",
+
+"— ALEJANDRO — Discusión. Nuestros hallazgos son consistentes con la literatura pero la extienden: confirmamos que el desbalance degrada la estabilidad, como reportan estudios previos en datos tabulares, y mostramos que en grafos la degradación es más severa por la dependencia estructural entre nodos. La contribución específica es el mapeo empírico completo: hasta donde sabemos, es el primer estudio que cruza sistemáticamente las tres dimensiones sobre Elliptic.",
+
+"— JUAN DIEGO — Limitaciones: un solo dataset, aunque es el benchmark estándar; descartamos GraphSMOTE de la versión uno por costo computacional; los intervalos se construyeron con veinte réplicas, que es suficiente estadísticamente pero puede ampliarse. Como líneas futuras proponemos extender a otros datasets AML, incluir explicadores contrafactuales, y estudiar la interacción con drift temporal.",
+
+"— ALEJANDRO — Conclusiones. Primero: el desbalance degrada sistemáticamente la estabilidad explicativa, con Jaccard cayendo hasta cuatro veces entre uno a uno y uno a cien. Segundo: la arquitectura importa mucho; TAGCN domina tanto en predicción como en estabilidad. Tercero: las técnicas de balanceo son complementarias, no sustitutas del diseño arquitectónico. Cuarto: entregamos una matriz de recomendación operativa para despliegue auditable.",
+
+"— JUAN DIEGO — Aporte académico: evidencia empírica rigurosa sobre un problema que la literatura identificaba como abierto. Aporte práctico: una guía de configuración para instituciones financieras y reguladores que quieran desplegar GNNs auditables. Con esto cerramos nuestra presentación principal. Quedamos atentos a sus preguntas y en los anexos hemos preparado material complementario sobre cada uno de los conceptos técnicos que hemos tocado.",
+
+"— Anexo A.1 — Partimos del modelo más básico: el perceptrón multicapa. Toma un vector de features, aplica transformaciones lineales seguidas de no linealidades, y produce una predicción. Es el bloque fundamental del deep learning y el punto de partida conceptual: todo lo que sigue en la tesis lo extiende a estructuras con relaciones.",
+
+"— Anexo A.2 — En un grafo dirigido atribuido, los nodos cargan vectores de features y las aristas codifican dirección. En Elliptic, cada nodo es una transacción con 166 features y cada arista indica que los fondos de una transacción alimentaron a la siguiente. Esta estructura hace invisible al MLP gran parte de la información relacional.",
+
+"— Anexo A.3 — El paso de mensajes se formaliza en tres fases: cada vecino construye un mensaje, el nodo central agrega todos los mensajes con una función invariante al orden, y actualiza su estado combinándolo con su representación previa. Repetir esto k veces expande el radio de recepción a k saltos.",
+
+"— Anexo A.4 — Comparativa entre las cuatro arquitecturas evaluadas. GCN promedia, GraphSAGE muestrea y concatena, GAT atiende, TAGCN aplica filtros polinomiales. Cada una tiene perfiles distintos de receptive field, costo computacional y capacidad expresiva.",
+
+"— Anexo A.5 — GCN en detalle: usa la matriz de adyacencia normalizada simétricamente. Es el método pionero. Su limitación fundamental en Elliptic es que con desbalance fuerte colapsa a la clase mayoritaria.",
+
+"— Anexo A.6 — GAT en detalle: cada arista recibe un coeficiente de atención alfa-ij aprendido, calculado vía softmax sobre transformaciones lineales. Usa múltiples cabezas de atención que se concatenan. Esto le permite ponderar distintamente a los vecinos, cosa que GCN no puede.",
+
+"— Anexo A.7 — TAGCN en detalle: usa un filtro polinomial de grado K que, en una sola capa, combina información hasta K saltos. Con K=3 alcanza los mejores resultados en Elliptic. Es la arquitectura que mejor se comporta en nuestros experimentos.",
+
+"— Anexo A.8 — GNNExplainer: dado un nodo y su predicción, optimiza una máscara continua sobre aristas y features que maximice la información mutua con la predicción original, regularizada para ser pequeña. Se optimiza vía descenso de gradiente, una máscara por nodo.",
+
+"— Anexo A.9 — PGExplainer: parametriza la generación de máscaras mediante una red neuronal auxiliar que toma embeddings de aristas y produce probabilidades de pertenencia al subgrafo explicativo. Se entrena colectivamente sobre múltiples nodos.",
+
+"— Anexo A.10 — GNNShap/SHAP: asigna a cada feature un valor de Shapley, su contribución promedio sobre todas las coaliciones posibles. Satisface eficiencia, simetría y monotonicidad. En la práctica se aproxima por muestreo de Monte Carlo, introduciendo varianza controlada.",
+
+"— Anexo A.11 — Índice de Jaccard: cardinal de la intersección sobre cardinal de la unión. Aplicado a conjuntos de aristas explicativas entre dos ejecuciones, mide estabilidad estructural directa. Varía entre cero y uno.",
+
+"— Anexo A.12 — Correlación de Spearman: mide el acuerdo de rankings, no de valores. Ideal para comparar órdenes de importancia de features entre ejecuciones. Robusta a transformaciones monótonas.",
+
+"— Anexo A.13 — SHAP Concentration: propuesta por He y colaboradores. Mide qué porcentaje del total de atribución acumulada está en el top-k de features. Alta concentración implica parsimonia y auditabilidad.",
+
+"— Anexo A.14 — Focal Loss frente a Class Weighting: ambos modifican la pérdida. Class weighting pondera por clase; focal loss pondera dinámicamente por dificultad de cada muestra. Focal es más sofisticado pero ninguno por sí solo resuelve el desbalance extremo.",
+
+"— Anexo A.15 — Oversmoothing: fenómeno por el cual, al apilar muchas capas GNN, las representaciones de los nodos convergen y se vuelven indistinguibles. Es una limitación fundamental que motiva arquitecturas como TAGCN que expanden el receptive field sin apilar capas."
+]
+</script>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+  <!-- ============================ PORTADA ============================ -->
+  <section class="slide" data-label="Portada">
+    <div style="position:absolute; top:100px; left:100px; right:100px;">
+      <div class="eyebrow fade-up d1">Maestría · Ingeniería de Sistemas y Computación</div>
+    </div>
+
+    <div style="position:absolute; left:100px; right:100px; top:260px; bottom:220px; display:flex; flex-direction:column; justify-content:center;">
+      <h1 class="h-title fade-up d2" style="font-size:92px; max-width:1500px;">
+        Estabilidad de métodos XAI en Graph Neural Networks para la detección de lavado de dinero
+      </h1>
+      <p class="h-sub fade-up d3" style="max-width:1300px; margin-top:12px;">
+        Evaluación empírica sobre el Elliptic Bitcoin Dataset bajo condiciones de desbalance de clases
+      </p>
+    </div>
+
+    <div style="position:absolute; left:100px; right:100px; bottom:120px;">
+      <hr class="rule" style="margin-bottom:36px;" />
+      <div class="row fade-up d4" style="gap:80px;">
+        <div>
+          <div class="micro" style="color:var(--ink-mute); margin-bottom:10px;">PROPONENTES</div>
+          <div class="body" style="font-size:30px; color:var(--ink);">Alejandro Gómez Huertas</div>
+          <div class="body" style="font-size:30px; color:var(--ink);">Juan Diego Garzón Ovalle</div>
+        </div>
+        <div>
+          <div class="micro" style="color:var(--ink-mute); margin-bottom:10px;">DIRECTOR</div>
+          <div class="body" style="font-size:30px; color:var(--ink);">Ph.D. Cristian Rosero Arias</div>
+          <div class="small" style="color:var(--ink-mute);">cristianroseroa@utp.edu.co</div>
+        </div>
+        <div style="margin-left:auto; text-align:right;">
+          <div class="micro" style="color:var(--ink-mute); margin-bottom:10px;">SUSTENTACIÓN</div>
+          <div class="body" style="font-size:30px; color:var(--ink);">Abril 2026</div>
+          <div class="small" style="color:var(--ink-mute);">Universidad Tecnológica de Pereira</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================ 2 · AGENDA ============================ -->
+  <section class="slide" data-label="Agenda">
+    <div class="eyebrow fade-up">Hoja de ruta</div>
+    <h2 class="h-head fade-up d1">Lo que haremos en los próximos 15 minutos</h2>
+
+    <div style="margin-top:60px; display:grid; grid-template-columns:80px 1fr 120px; row-gap:0;">
+      <div class="fade-up d2" style="padding:22px 0; border-bottom:1px solid var(--rule); font-family:var(--ff-serif); font-size:32px; color:var(--accent); font-weight:600;">I</div>
+      <div class="fade-up d2" style="padding:22px 0; border-bottom:1px solid var(--rule); font-size:32px; color:var(--ink);">Contexto y problema — por qué este estudio</div>
+      <div class="fade-up d2" style="padding:22px 0; border-bottom:1px solid var(--rule); text-align:right; font-size:26px; color:var(--ink-mute); font-feature-settings:'tnum' 1;">3 min</div>
+
+      <div class="fade-up d3" style="padding:22px 0; border-bottom:1px solid var(--rule); font-family:var(--ff-serif); font-size:32px; color:var(--accent); font-weight:600;">II</div>
+      <div class="fade-up d3" style="padding:22px 0; border-bottom:1px solid var(--rule); font-size:32px; color:var(--ink);">Marco conceptual — GNNs, XAI y estabilidad</div>
+      <div class="fade-up d3" style="padding:22px 0; border-bottom:1px solid var(--rule); text-align:right; font-size:26px; color:var(--ink-mute);">3 min</div>
+
+      <div class="fade-up d4" style="padding:22px 0; border-bottom:1px solid var(--rule); font-family:var(--ff-serif); font-size:32px; color:var(--accent); font-weight:600;">III</div>
+      <div class="fade-up d4" style="padding:22px 0; border-bottom:1px solid var(--rule); font-size:32px; color:var(--ink);">Metodología — diseño experimental factorial</div>
+      <div class="fade-up d4" style="padding:22px 0; border-bottom:1px solid var(--rule); text-align:right; font-size:26px; color:var(--ink-mute);">2 min</div>
+
+      <div class="fade-up d5" style="padding:22px 0; border-bottom:1px solid var(--rule); font-family:var(--ff-serif); font-size:32px; color:var(--accent); font-weight:600;">IV</div>
+      <div class="fade-up d5" style="padding:22px 0; border-bottom:1px solid var(--rule); font-size:32px; color:var(--ink);">Resultados — degradación, comparativa y matriz</div>
+      <div class="fade-up d5" style="padding:22px 0; border-bottom:1px solid var(--rule); text-align:right; font-size:26px; color:var(--ink-mute);">5 min</div>
+
+      <div class="fade-up d6" style="padding:22px 0; font-family:var(--ff-serif); font-size:32px; color:var(--accent); font-weight:600;">V</div>
+      <div class="fade-up d6" style="padding:22px 0; font-size:32px; color:var(--ink);">Discusión y conclusiones</div>
+      <div class="fade-up d6" style="padding:22px 0; text-align:right; font-size:26px; color:var(--ink-mute);">2 min</div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Sustentación de tesis</span><span class="page">02</span></div>
+  </section>
+
+  <!-- ============================ 3 · SECCIÓN I ============================ -->
+  <section class="slide section-slide" data-label="Sección I · Contexto">
+    <div>
+      <div class="eyebrow fade-up">Parte I</div>
+      <div class="h-section fade-up d1" style="font-size:180px;">Contexto<br/>& problema</div>
+    </div>
+    <div class="row fade-up d3" style="align-items:flex-end; gap:60px; color:rgba(255,255,255,.72); font-size:28px;">
+      <div style="max-width:900px; line-height:1.45; font-family:var(--ff-serif); font-style:italic; font-size:36px;">
+        Menos del 1% de los flujos financieros ilícitos globales son interceptados. El resto circula.
+      </div>
+      <div style="margin-left:auto; text-align:right; font-size:24px; letter-spacing:.14em; text-transform:uppercase;">03 / 20</div>
+    </div>
+  </section>
+
+  <!-- ============================ 4 · MAGNITUD ============================ -->
+  <section class="slide" data-label="Magnitud">
+    <div class="eyebrow fade-up">Magnitud del problema</div>
+    <h2 class="h-head fade-up d1" style="max-width:1400px;">El lavado de dinero es un fenómeno sistémico y el sistema actual no lo contiene</h2>
+
+    <div class="row" style="margin-top:72px; gap:40px;">
+      <div class="col grow fade-up d2" style="gap:14px;">
+        <div class="metric">
+          <div class="num">2–5%</div>
+          <div class="lbl">del PIB mundial anual se lava a través del sistema financiero</div>
+        </div>
+      </div>
+      <div class="col grow fade-up d3" style="gap:14px;">
+        <div class="metric">
+          <div class="num">$23.8 B</div>
+          <div class="lbl">volumen estimado de lavado en cripto en 2022 (+68% vs 2021)</div>
+        </div>
+      </div>
+      <div class="col grow fade-up d4" style="gap:14px;">
+        <div class="metric">
+          <div class="num num--ink">&lt; 1%</div>
+          <div class="lbl">de los flujos ilícitos son efectivamente interceptados</div>
+        </div>
+      </div>
+      <div class="col grow fade-up d5" style="gap:14px;">
+        <div class="metric">
+          <div class="num num--ink">95–98%</div>
+          <div class="lbl">de las alertas de los sistemas basados en reglas son falsos positivos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up d6" style="position:absolute; left:100px; right:100px; bottom:100px; font-family:var(--ff-serif); font-style:italic; font-size:30px; color:var(--ink-soft); max-width:1400px;">
+      El costo global de cumplimiento AML supera los <b style="color:var(--ink); font-style:normal;">USD 180 mil millones anuales</b>. La respuesta tecnológica actual es económicamente insostenible.
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Contexto</span><span class="page">04</span></div>
+  </section>
+
+  <!-- ============================ 5 · REGLAS vs GRAFOS ============================ -->
+  <section class="slide" data-label="Reglas vs Grafos">
+    <div class="eyebrow fade-up">Cambio de paradigma</div>
+    <h2 class="h-head fade-up d1" style="max-width:1600px;">De reglas deterministas a modelos relacionales</h2>
+
+    <div class="row fade-up d2" style="margin-top:36px; gap:40px; height:720px;">
+      <div class="img-frame grow" style="height:100%; background:var(--bg);">
+        <img src="imgs_photoscape/enfoques_moeny_laundering.png" alt="Enfoque tradicional vs relacional" />
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Contexto</span><span class="page">05</span></div>
+  </section>
+
+  <!-- ============================ 6 · PROBLEMA DE INVESTIGACIÓN ============================ -->
+  <section class="slide" data-label="Problema">
+    <div class="eyebrow fade-up">El núcleo del problema</div>
+    <h2 class="h-head fade-up d1" style="max-width:1600px;">Las GNN resuelven la detección, pero la explicación no es confiable</h2>
+
+    <div class="row" style="margin-top:60px; gap:56px;">
+      <div class="grow fade-up d2">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Lo resuelto</div>
+        <p class="body body--lg" style="margin-top:12px;">Las <b style="color:var(--ink);">Graph Neural Networks</b> superan a métodos tabulares en Elliptic: TAGCN alcanza <b style="color:var(--ink);">MCC 0.89</b> y F1 0.90.</p>
+      </div>
+      <div class="grow fade-up d3">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Lo pendiente</div>
+        <p class="body body--lg" style="margin-top:12px;">En dominios regulados, cada alerta debe <b style="color:var(--ink);">justificarse</b>. Las GNN son cajas negras.</p>
+      </div>
+      <div class="grow fade-up d4">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Lo abierto</div>
+        <p class="body body--lg" style="margin-top:12px;">XAI sobre GNNs produce explicaciones <b style="color:var(--ink);">inestables</b> bajo desbalance: el mismo nodo, distinta explicación.</p>
+      </div>
+    </div>
+
+    <div class="fade-up d5" style="margin-top:72px; padding:36px 44px; background:var(--bg-alt); border-left:4px solid var(--accent);">
+      <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-bottom:14px;">Pregunta de investigación</div>
+      <p class="body" style="font-family:var(--ff-serif); font-size:36px; color:var(--ink); line-height:1.3; margin:0;">
+        ¿Cómo cuantificar la degradación de la estabilidad de los métodos XAI sobre GNNs aplicadas al Elliptic Dataset bajo desbalance, y qué combinación de arquitectura, explicador y técnica de balanceo la optimiza?
+      </p>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Contexto</span><span class="page">06</span></div>
+  </section>
+
+  <!-- ============================ 7 · SECCIÓN II ============================ -->
+  <section class="slide section-slide" data-label="Sección II · Marco">
+    <div>
+      <div class="eyebrow fade-up">Parte II</div>
+      <div class="h-section fade-up d1" style="font-size:180px;">Marco<br/>conceptual</div>
+    </div>
+    <div class="row fade-up d3" style="align-items:flex-end; gap:60px; color:rgba(255,255,255,.72); font-size:28px;">
+      <div style="max-width:900px; line-height:1.45; font-family:var(--ff-serif); font-style:italic; font-size:36px;">
+        GNNs, métodos XAI y la definición formal de estabilidad explicativa.
+      </div>
+      <div style="margin-left:auto; text-align:right; font-size:24px; letter-spacing:.14em; text-transform:uppercase;">07 / 20</div>
+    </div>
+  </section>
+
+  <!-- ============================ 8 · MESSAGE PASSING ============================ -->
+  <section class="slide" data-label="Message passing">
+    <div class="eyebrow fade-up">Paradigma GNN</div>
+    <h2 class="h-head fade-up d1" style="max-width:1500px;">Paso de mensajes: cada nodo aprende de su vecindario</h2>
+
+    <div class="row" style="margin-top:40px; gap:56px;">
+      <div class="grow" style="flex:1.3;">
+        <svg viewBox="0 0 900 620" style="width:100%; height:620px; display:block;">
+          <defs>
+            <marker id="arr" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--ink-soft)"/>
+            </marker>
+            <marker id="arrA" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
+              <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+            </marker>
+          </defs>
+          <!-- Layer 0 - 1-hop vecinos -->
+          <g class="mp-layer mp-l0">
+            <line x1="450" y1="310" x2="200" y2="150" stroke="var(--ink-soft)" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="450" y1="310" x2="700" y2="150" stroke="var(--ink-soft)" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="450" y1="310" x2="150" y2="450" stroke="var(--ink-soft)" stroke-width="2" marker-end="url(#arr)"/>
+            <line x1="450" y1="310" x2="740" y2="450" stroke="var(--ink-soft)" stroke-width="2" marker-end="url(#arr)"/>
+          </g>
+          <!-- Activated edges layer 1 -->
+          <g class="mp-layer mp-l1">
+            <line class="msg" x1="200" y1="150" x2="440" y2="304" stroke="var(--accent)" stroke-width="3" marker-end="url(#arrA)"/>
+            <line class="msg" x1="700" y1="150" x2="460" y2="304" stroke="var(--accent)" stroke-width="3" marker-end="url(#arrA)"/>
+            <line class="msg" x1="150" y1="450" x2="440" y2="318" stroke="var(--accent)" stroke-width="3" marker-end="url(#arrA)"/>
+            <line class="msg" x1="740" y1="450" x2="462" y2="320" stroke="var(--accent)" stroke-width="3" marker-end="url(#arrA)"/>
+          </g>
+          <!-- Nodes -->
+          <g>
+            <circle cx="200" cy="150" r="34" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>
+            <circle cx="700" cy="150" r="34" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>
+            <circle cx="150" cy="450" r="34" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>
+            <circle cx="740" cy="450" r="34" fill="var(--bg)" stroke="var(--ink)" stroke-width="2"/>
+            <circle cx="450" cy="310" r="48" fill="var(--accent)" stroke="var(--dark)" stroke-width="2"/>
+            <text x="450" y="320" text-anchor="middle" font-size="32" font-family="var(--ff-serif)" font-weight="600" fill="#fff">v</text>
+            <text x="200" y="160" text-anchor="middle" font-size="24" font-family="var(--ff-serif)" fill="var(--ink)">u₁</text>
+            <text x="700" y="160" text-anchor="middle" font-size="24" font-family="var(--ff-serif)" fill="var(--ink)">u₂</text>
+            <text x="150" y="460" text-anchor="middle" font-size="24" font-family="var(--ff-serif)" fill="var(--ink)">u₃</text>
+            <text x="740" y="460" text-anchor="middle" font-size="24" font-family="var(--ff-serif)" fill="var(--ink)">u₄</text>
+          </g>
+          <text x="450" y="590" text-anchor="middle" font-size="24" fill="var(--ink-mute)" font-family="var(--ff-sans)">Capa k: h_v ← UPDATE(h_v, AGG({h_u : u ∈ N(v)}))</text>
+        </svg>
+        <style>
+          .mp-l1 .msg{stroke-dasharray:500; stroke-dashoffset:500; transition:stroke-dashoffset 1.4s ease-out .4s;}
+          [data-deck-active] .mp-l1 .msg{stroke-dashoffset:0;}
+        </style>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <ul class="clean">
+          <li><b>Generar</b> — cada vecino u emite un mensaje m<sub>u→v</sub></li>
+          <li><b>Agregar</b> — el nodo v combina los mensajes con una función invariante al orden</li>
+          <li><b>Actualizar</b> — v combina la agregación con su estado previo</li>
+          <li><b>k capas</b> — el receptive field crece a k saltos: cadenas largas de lavado</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Marco conceptual</span><span class="page">08</span></div>
+  </section>
+
+  <!-- ============================ 9 · ARQUITECTURAS ============================ -->
+  <section class="slide" data-label="Arquitecturas GNN">
+    <div class="eyebrow fade-up">Arquitecturas evaluadas</div>
+    <h2 class="h-head fade-up d1">Cuatro familias, cuatro perfiles de agregación</h2>
+
+    <table class="tbl fade-up d2" style="margin-top:40px;">
+      <thead><tr>
+        <th style="width:16%">Arquitectura</th>
+        <th style="width:32%">Mecanismo de agregación</th>
+        <th style="width:18%">Alcance por capa</th>
+        <th style="width:17%">Fortaleza</th>
+        <th style="width:17%">Debilidad</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>GCN</b></td><td>Promedio normalizado por grado</td><td>1 salto</td><td>Simplicidad, fundamento espectral</td><td>Colapso bajo desbalance extremo</td></tr>
+        <tr><td><b>GraphSAGE</b></td><td>Muestreo + concatenación vecindario/self</td><td>Configurable</td><td>Escalable, inductivo</td><td>Variabilidad por muestreo</td></tr>
+        <tr><td><b>GAT</b></td><td>Atención multi-cabeza sobre vecinos</td><td>1 salto ponderado</td><td>Pondera vecinos dinámicamente</td><td>Mayor costo computacional</td></tr>
+        <tr class="hl"><td><b>TAGCN</b></td><td>Filtros polinomiales de orden K</td><td>K saltos (K=3)</td><td>Mejor MCC y SHAP Concentration</td><td>Mayor complejidad</td></tr>
+      </tbody>
+    </table>
+
+    <p class="small fade-up d3" style="margin-top:36px; font-style:italic; max-width:1400px;">
+      He et al. (2026): TAGCN alcanza <b style="color:var(--ink); font-style:normal;">Accuracy 98.14%, F1 0.90, MCC 0.89</b> sobre Elliptic, superando a GCN, GraphSAGE, GAT y baselines tabulares.
+    </p>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Marco conceptual</span><span class="page">09</span></div>
+  </section>
+
+  <!-- ============================ 10 · XAI + ESTABILIDAD ============================ -->
+  <section class="slide" data-label="XAI y estabilidad">
+    <div class="eyebrow fade-up">Métodos XAI y métricas</div>
+    <h2 class="h-head fade-up d1" style="max-width:1600px;">Tres explicadores, tres métricas de estabilidad</h2>
+
+    <div class="row" style="margin-top:40px; gap:24px;">
+      <div class="card fade-up d2 grow" style="flex-basis:0;">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Explicadores</div>
+        <div style="margin-top:18px;">
+          <h4>GNNExplainer</h4>
+          <p>Optimización de máscara continua por instancia sobre aristas y features.</p>
+        </div>
+        <hr class="rule" style="margin:18px 0;" />
+        <div>
+          <h4>PGExplainer</h4>
+          <p>Red generadora paramétrica compartida: eficiencia e inducción.</p>
+        </div>
+        <hr class="rule" style="margin:18px 0;" />
+        <div>
+          <h4>GNNShap</h4>
+          <p>Valores de Shapley aproximados por muestreo. Garantías axiomáticas.</p>
+        </div>
+      </div>
+
+      <div class="card fade-up d3 grow" style="flex-basis:0;">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Métricas de estabilidad</div>
+        <div style="margin-top:18px;">
+          <h4>Jaccard(E₁, E₂)</h4>
+          <p>|E₁ ∩ E₂| / |E₁ ∪ E₂|. Similitud entre subgrafos explicativos.</p>
+        </div>
+        <hr class="rule" style="margin:18px 0;" />
+        <div>
+          <h4>Spearman(R₁, R₂)</h4>
+          <p>Acuerdo de ranking de importancia de features entre ejecuciones.</p>
+        </div>
+        <hr class="rule" style="margin:18px 0;" />
+        <div>
+          <h4>SHAP Concentration</h4>
+          <p>% de atribución acumulada en top-k features. Parsimonia auditable.</p>
+        </div>
+      </div>
+
+      <div class="fade-up d4 grow" style="flex-basis:0; padding:40px 36px; background:var(--dark); color:var(--bg);">
+        <div class="small" style="color:var(--accent-soft); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Definición formal</div>
+        <p style="font-family:var(--ff-serif); font-size:30px; line-height:1.35; margin-top:18px; color:var(--bg);">
+          Una explicación es <i>estable</i> si el método XAI identifica consistentemente las mismas features o subgrafos ante perturbaciones mínimas o cambios de semilla.
+        </p>
+        <p style="font-size:24px; color:rgba(255,255,255,.7); margin-top:24px; line-height:1.45;">
+          Sin estabilidad, la auditoría forense es imposible: una alerta no puede justificarse si mañana produce otra explicación.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Marco conceptual</span><span class="page">10</span></div>
+  </section>
+
+  <!-- ============================ 11 · SECCIÓN III · METODOLOGÍA ============================ -->
+  <section class="slide section-slide" data-label="Sección III · Metodología">
+    <div>
+      <div class="eyebrow fade-up">Parte III</div>
+      <div class="h-section fade-up d1" style="font-size:180px;">Diseño<br/>experimental</div>
+    </div>
+    <div class="row fade-up d3" style="align-items:flex-end; gap:60px; color:rgba(255,255,255,.72); font-size:28px;">
+      <div style="max-width:1000px; line-height:1.45; font-family:var(--ff-serif); font-style:italic; font-size:36px;">
+        144 configuraciones × 20 réplicas estocásticas · ANOVA factorial completo
+      </div>
+      <div style="margin-left:auto; text-align:right; font-size:24px; letter-spacing:.14em; text-transform:uppercase;">11 / 20</div>
+    </div>
+  </section>
+
+  <!-- ============================ 12 · DATASET ============================ -->
+  <section class="slide" data-label="Dataset Elliptic">
+    <div class="eyebrow fade-up">Elliptic Bitcoin Dataset</div>
+    <h2 class="h-head fade-up d1">El benchmark: 203 mil transacciones, desbalance real</h2>
+
+    <div class="row" style="margin-top:40px; gap:40px;">
+      <div class="col" style="flex:1; gap:22px;">
+        <div class="fade-up d2 row" style="gap:22px;">
+          <div class="card grow"><div class="metric"><div class="num num--ink" style="font-size:88px;">203,769</div><div class="lbl">transacciones (nodos)</div></div></div>
+          <div class="card grow"><div class="metric"><div class="num num--ink" style="font-size:88px;">234,355</div><div class="lbl">aristas dirigidas</div></div></div>
+        </div>
+        <div class="fade-up d3 row" style="gap:22px;">
+          <div class="card grow"><div class="metric"><div class="num num--ink" style="font-size:88px;">166</div><div class="lbl">features por nodo (locales + agregadas)</div></div></div>
+          <div class="card grow"><div class="metric"><div class="num num--ink" style="font-size:88px;">49</div><div class="lbl">pasos temporales</div></div></div>
+        </div>
+        <div class="fade-up d4 card" style="background:var(--hl); border-color:var(--accent-soft);">
+          <div class="row" style="gap:40px; align-items:center;">
+            <div class="metric"><div class="num">9.8%</div><div class="lbl" style="margin-top:4px;">etiquetadas ilícitas</div></div>
+            <div class="metric"><div class="num">&lt; 2%</div><div class="lbl" style="margin-top:4px;">del total incl. sin etiqueta</div></div>
+            <p class="body" style="font-size:26px; color:var(--ink); flex:1;">El desbalance no es un defecto: refleja la prevalencia real del fenómeno.</p>
+          </div>
+        </div>
+      </div>
+      <div class="img-frame fade-up d5" style="flex:1; height:760px;">
+        <img src="0_research_and_planning/semana_1/notebooks/figuras/temporal_imbalance.png" alt="Desbalance temporal" />
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Metodología</span><span class="page">12</span></div>
+  </section>
+
+  <!-- ============================ 13 · MATRIZ EXPERIMENTAL ============================ -->
+  <section class="slide" data-label="Matriz experimental">
+    <div class="eyebrow fade-up">Diseño factorial</div>
+    <h2 class="h-head fade-up d1">4 × 4 × 3 × 3 = 144 configuraciones · 20 réplicas c/u</h2>
+
+    <div class="row" style="margin-top:52px; gap:32px;">
+      <div class="fade-up d2 grow" style="text-align:center;">
+        <div class="num" style="font-family:var(--ff-serif); font-size:140px; color:var(--accent); font-weight:600; line-height:1;">4</div>
+        <div class="small" style="margin-top:14px; color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Escenarios</div>
+        <p class="small" style="color:var(--ink-soft); margin-top:14px;">1:1 · 1:10 · 1:50 · 1:100</p>
+      </div>
+      <div style="width:1px; background:var(--rule);"></div>
+      <div class="fade-up d3 grow" style="text-align:center;">
+        <div class="num" style="font-family:var(--ff-serif); font-size:140px; color:var(--accent); font-weight:600; line-height:1;">4</div>
+        <div class="small" style="margin-top:14px; color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Arquitecturas</div>
+        <p class="small" style="color:var(--ink-soft); margin-top:14px;">GCN · SAGE · GAT · TAGCN</p>
+      </div>
+      <div style="width:1px; background:var(--rule);"></div>
+      <div class="fade-up d4 grow" style="text-align:center;">
+        <div class="num" style="font-family:var(--ff-serif); font-size:140px; color:var(--accent); font-weight:600; line-height:1;">3</div>
+        <div class="small" style="margin-top:14px; color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Balanceos</div>
+        <p class="small" style="color:var(--ink-soft); margin-top:14px;">none · class-weight · focal</p>
+      </div>
+      <div style="width:1px; background:var(--rule);"></div>
+      <div class="fade-up d5 grow" style="text-align:center;">
+        <div class="num" style="font-family:var(--ff-serif); font-size:140px; color:var(--accent); font-weight:600; line-height:1;">3</div>
+        <div class="small" style="margin-top:14px; color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Explicadores</div>
+        <p class="small" style="color:var(--ink-soft); margin-top:14px;">GNNExpl · PGExpl · GNNShap</p>
+      </div>
+    </div>
+
+    <div class="fade-up d6" style="margin-top:60px; padding:32px 40px; background:var(--bg-alt); border-top:2px solid var(--ink);">
+      <div class="row" style="gap:40px;">
+        <div class="grow"><div class="small" style="color:var(--ink-mute); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Métricas predictivas</div><p class="body" style="margin-top:6px;">F1 · MCC · PR-AUC</p></div>
+        <div class="grow"><div class="small" style="color:var(--ink-mute); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Métricas de estabilidad</div><p class="body" style="margin-top:6px;">Jaccard · Spearman · SHAP Concentration</p></div>
+        <div class="grow"><div class="small" style="color:var(--ink-mute); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Análisis estadístico</div><p class="body" style="margin-top:6px;">ANOVA factorial + Tukey HSD</p></div>
+        <div class="grow"><div class="small" style="color:var(--ink-mute); font-weight:600; letter-spacing:.1em; text-transform:uppercase;">Infraestructura</div><p class="body" style="margin-top:6px;">3 GPUs · MLflow · early stopping</p></div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Metodología</span><span class="page">13</span></div>
+  </section>
+
+  <!-- ============================ 14 · SECCIÓN IV · RESULTADOS ============================ -->
+  <section class="slide section-slide" data-label="Sección IV · Resultados">
+    <div>
+      <div class="eyebrow fade-up">Parte IV</div>
+      <div class="h-section fade-up d1" style="font-size:180px;">Resultados</div>
+    </div>
+    <div class="row fade-up d3" style="align-items:flex-end; gap:60px; color:rgba(255,255,255,.72); font-size:28px;">
+      <div style="max-width:1000px; line-height:1.45; font-family:var(--ff-serif); font-style:italic; font-size:36px;">
+        Rendimiento predictivo, degradación de estabilidad y matriz de recomendación
+      </div>
+      <div style="margin-left:auto; text-align:right; font-size:24px; letter-spacing:.14em; text-transform:uppercase;">14 / 20</div>
+    </div>
+  </section>
+
+  <!-- ============================ 15 · RENDIMIENTO ============================ -->
+  <section class="slide" data-label="Rendimiento predictivo">
+    <div class="eyebrow fade-up">Resultados · predictivo</div>
+    <h2 class="h-head fade-up d1">TAGCN es la única arquitectura que resiste el desbalance extremo</h2>
+
+    <div class="row" style="margin-top:40px; gap:48px;">
+      <div class="grow" style="flex:1.4;">
+        <div class="fade-up d2 small" style="color:var(--ink-mute); font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-bottom:20px;">MCC por arquitectura × escenario</div>
+
+        <div class="col" style="gap:22px;">
+          <!-- GCN -->
+          <div class="fade-up d2">
+            <div class="row" style="justify-content:space-between; margin-bottom:6px;"><span style="font-family:var(--ff-serif); font-weight:600; font-size:28px;">GCN</span><span class="small" style="color:var(--ink-mute);">colapsa ≥ 1:50</span></div>
+            <div class="row" style="gap:10px;">
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:82%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:58%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:22%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:8%"></div></div>
+            </div>
+          </div>
+          <!-- SAGE -->
+          <div class="fade-up d3">
+            <div class="row" style="justify-content:space-between; margin-bottom:6px;"><span style="font-family:var(--ff-serif); font-weight:600; font-size:28px;">GraphSAGE</span><span class="small" style="color:var(--ink-mute);">degradación gradual</span></div>
+            <div class="row" style="gap:10px;">
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:85%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:70%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:48%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:32%"></div></div>
+            </div>
+          </div>
+          <!-- GAT -->
+          <div class="fade-up d4">
+            <div class="row" style="justify-content:space-between; margin-bottom:6px;"><span style="font-family:var(--ff-serif); font-weight:600; font-size:28px;">GAT</span><span class="small" style="color:var(--ink-mute);">robusto con atención</span></div>
+            <div class="row" style="gap:10px;">
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill support" style="--w:86%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill support" style="--w:76%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill support" style="--w:62%"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill support" style="--w:48%"></div></div>
+            </div>
+          </div>
+          <!-- TAGCN -->
+          <div class="fade-up d5">
+            <div class="row" style="justify-content:space-between; margin-bottom:6px;"><span style="font-family:var(--ff-serif); font-weight:600; font-size:28px; color:var(--accent);">TAGCN <span style="font-size:24px; font-weight:500;">· recomendado</span></span><span class="small" style="color:var(--accent);">MCC ≥ 0.70 en todos</span></div>
+            <div class="row" style="gap:10px;">
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:89%; background:var(--accent);"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:84%; background:var(--accent);"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:78%; background:var(--accent);"></div></div>
+              <div class="bar-track grow" style="flex:1;"><div class="bar-fill" style="--w:72%; background:var(--accent);"></div></div>
+            </div>
+          </div>
+          <!-- Labels -->
+          <div class="fade-up d6 row" style="gap:10px; margin-top:4px;">
+            <div class="grow small" style="flex:1; text-align:center; color:var(--ink-mute);">1:1</div>
+            <div class="grow small" style="flex:1; text-align:center; color:var(--ink-mute);">1:10</div>
+            <div class="grow small" style="flex:1; text-align:center; color:var(--ink-mute);">1:50</div>
+            <div class="grow small" style="flex:1; text-align:center; color:var(--ink-mute);">1:100</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grow fade-up d4" style="flex:1;">
+        <ul class="clean">
+          <li><b>GCN</b> colapsa a la clase mayoritaria en 1:50 y 1:100 (MCC &lt; 0.10)</li>
+          <li><b>GraphSAGE</b> muestra degradación continua por muestreo</li>
+          <li><b>GAT</b> mantiene buen desempeño gracias a la atención selectiva</li>
+          <li><b>TAGCN</b> preserva MCC ≥ 0.72 incluso en 1:100</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Resultados</span><span class="page">15</span></div>
+  </section>
+
+  <!-- ============================ 16 · JACCARD DEGRADACIÓN ============================ -->
+  <section class="slide" data-label="Degradación Jaccard">
+    <div class="eyebrow fade-up">Hallazgo central</div>
+    <h2 class="h-head fade-up d1" style="max-width:1600px;">El Jaccard de las explicaciones cae hasta <span style="color:var(--accent);">4×</span> entre 1:1 y 1:100</h2>
+
+    <div class="row" style="margin-top:32px; gap:40px;">
+      <div class="grow" style="flex:1.5;">
+        <svg viewBox="0 0 900 540" style="width:100%; height:560px; display:block;">
+          <!-- axes -->
+          <line x1="80" y1="60" x2="80" y2="460" stroke="var(--ink)" stroke-width="2"/>
+          <line x1="80" y1="460" x2="860" y2="460" stroke="var(--ink)" stroke-width="2"/>
+          <!-- Y gridlines -->
+          <g stroke="var(--rule)" stroke-width="1">
+            <line x1="80" y1="140" x2="860" y2="140"/>
+            <line x1="80" y1="220" x2="860" y2="220"/>
+            <line x1="80" y1="300" x2="860" y2="300"/>
+            <line x1="80" y1="380" x2="860" y2="380"/>
+          </g>
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="68" y="67" text-anchor="end">1.0</text>
+            <text x="68" y="147" text-anchor="end">0.8</text>
+            <text x="68" y="227" text-anchor="end">0.6</text>
+            <text x="68" y="307" text-anchor="end">0.4</text>
+            <text x="68" y="387" text-anchor="end">0.2</text>
+            <text x="68" y="467" text-anchor="end">0.0</text>
+            <text x="270" y="495" text-anchor="middle">1:1</text>
+            <text x="460" y="495" text-anchor="middle">1:10</text>
+            <text x="650" y="495" text-anchor="middle">1:50</text>
+            <text x="830" y="495" text-anchor="middle">1:100</text>
+            <text x="470" y="528" text-anchor="middle" font-size="24" fill="var(--ink-soft)">Ratio de desbalance (ilícita : lícita)</text>
+          </g>
+          <text x="30" y="260" text-anchor="middle" font-size="24" fill="var(--ink-soft)" font-family="var(--ff-sans)" transform="rotate(-90 30 260)">Jaccard medio (20 réplicas)</text>
+
+          <!-- Threshold -->
+          <line x1="80" y1="220" x2="860" y2="220" stroke="var(--accent)" stroke-width="1.5" stroke-dasharray="4 6" opacity=".6"/>
+          <text x="850" y="210" text-anchor="end" font-size="24" fill="var(--accent)" font-family="var(--ff-sans)">umbral auditabilidad 0.60</text>
+
+          <!-- Lines (path reveal) -->
+          <!-- GNNExplainer: 0.70 -> 0.55 -> 0.35 -> 0.25 -->
+          <path class="jline j1" d="M 270 180 L 460 240 L 650 340 L 830 380" stroke="#B84A2E" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <!-- PGExplainer: 0.78 -> 0.68 -> 0.52 -> 0.42 -->
+          <path class="jline j2" d="M 270 148 L 460 188 L 650 252 L 830 292" stroke="#8A7A5C" stroke-width="4" fill="none" stroke-linecap="round"/>
+          <!-- GNNShap: 0.82 -> 0.74 -> 0.62 -> 0.54 -->
+          <path class="jline j3" d="M 270 132 L 460 164 L 650 212 L 830 244" stroke="#6B8E23" stroke-width="4" fill="none" stroke-linecap="round"/>
+
+          <!-- points -->
+          <g fill="#B84A2E"><circle cx="270" cy="180" r="6"/><circle cx="460" cy="240" r="6"/><circle cx="650" cy="340" r="6"/><circle cx="830" cy="380" r="6"/></g>
+          <g fill="#8A7A5C"><circle cx="270" cy="148" r="6"/><circle cx="460" cy="188" r="6"/><circle cx="650" cy="252" r="6"/><circle cx="830" cy="292" r="6"/></g>
+          <g fill="#6B8E23"><circle cx="270" cy="132" r="6"/><circle cx="460" cy="164" r="6"/><circle cx="650" cy="212" r="6"/><circle cx="830" cy="244" r="6"/></g>
+
+          <style>
+            .jline{stroke-dasharray:1200; stroke-dashoffset:1200;}
+            [data-deck-active] .j1{transition:stroke-dashoffset 1.2s ease-out .4s; stroke-dashoffset:0;}
+            [data-deck-active] .j2{transition:stroke-dashoffset 1.2s ease-out .7s; stroke-dashoffset:0;}
+            [data-deck-active] .j3{transition:stroke-dashoffset 1.2s ease-out 1.0s; stroke-dashoffset:0;}
+          </style>
+        </svg>
+      </div>
+
+      <div class="col grow fade-up d4" style="flex:1; gap:20px;">
+        <div>
+          <div style="display:flex; gap:12px; align-items:center;"><span style="width:28px; height:4px; background:#6B8E23; display:inline-block;"></span><b style="font-family:var(--ff-serif); font-size:28px;">GNNShap</b></div>
+          <p class="small" style="margin-top:6px; color:var(--ink-soft);">Caída 0.82 → 0.54 (−34%). El más estable en rankings.</p>
+        </div>
+        <div>
+          <div style="display:flex; gap:12px; align-items:center;"><span style="width:28px; height:4px; background:#8A7A5C; display:inline-block;"></span><b style="font-family:var(--ff-serif); font-size:28px;">PGExplainer</b></div>
+          <p class="small" style="margin-top:6px; color:var(--ink-soft);">Caída 0.78 → 0.42 (−46%). Intermedio.</p>
+        </div>
+        <div>
+          <div style="display:flex; gap:12px; align-items:center;"><span style="width:28px; height:4px; background:#B84A2E; display:inline-block;"></span><b style="font-family:var(--ff-serif); font-size:28px;">GNNExplainer</b></div>
+          <p class="small" style="margin-top:6px; color:var(--ink-soft);">Caída 0.70 → 0.25 (−64%). El más sensible al desbalance.</p>
+        </div>
+        <hr class="rule" />
+        <p class="small" style="color:var(--ink); font-style:italic;">Bajo 1:100, el 75% de las aristas explicativas cambia entre ejecuciones. Insostenible para auditoría.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Resultados</span><span class="page">16</span></div>
+  </section>
+
+  <!-- ============================ 17 · BALANCEO ============================ -->
+  <section class="slide" data-label="Balanceo">
+    <div class="eyebrow fade-up">Impacto del balanceo</div>
+    <h2 class="h-head fade-up d1">Focal Loss ayuda, pero no salva a arquitecturas frágiles</h2>
+
+    <table class="tbl fade-up d2" style="margin-top:42px;">
+      <thead><tr>
+        <th>Arquitectura × Balanceo</th>
+        <th class="num">F1 (1:100)</th>
+        <th class="num">MCC (1:100)</th>
+        <th class="num">Jaccard medio</th>
+        <th class="num">SHAP Conc. top-10%</th>
+        <th>Apto despliegue</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>GCN · none</td><td class="num">0.12</td><td class="num">0.08</td><td class="num">0.22</td><td class="num">0.41</td><td style="color:var(--ink-mute);">—</td></tr>
+        <tr><td>GCN · focal</td><td class="num">0.34</td><td class="num">0.27</td><td class="num">0.31</td><td class="num">0.44</td><td style="color:var(--ink-mute);">—</td></tr>
+        <tr><td>SAGE · focal</td><td class="num">0.62</td><td class="num">0.54</td><td class="num">0.48</td><td class="num">0.58</td><td style="color:var(--ink-mute);">parcial</td></tr>
+        <tr><td>GAT · class-w</td><td class="num">0.71</td><td class="num">0.63</td><td class="num">0.55</td><td class="num">0.66</td><td style="color:var(--support); font-weight:600;">sí</td></tr>
+        <tr class="hl"><td><b>TAGCN · focal</b></td><td class="num"><b>0.83</b></td><td class="num"><b>0.74</b></td><td class="num"><b>0.62</b></td><td class="num"><b>0.78</b></td><td style="color:var(--accent); font-weight:600;">recomendado</td></tr>
+      </tbody>
+    </table>
+
+    <div class="fade-up d3" style="margin-top:44px; font-family:var(--ff-serif); font-style:italic; font-size:30px; color:var(--ink-soft); max-width:1500px;">
+      El balanceo interactúa con la arquitectura: <b style="color:var(--ink); font-style:normal;">ninguna técnica por sí sola</b> salva a GCN del colapso bajo desbalance extremo.
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Resultados</span><span class="page">17</span></div>
+  </section>
+
+  <!-- ============================ 18 · SHAP CONCENTRATION ============================ -->
+  <section class="slide" data-label="SHAP Concentration">
+    <div class="eyebrow fade-up">Parsimonia explicativa</div>
+    <h2 class="h-head fade-up d1">TAGCN concentra la atribución; GCN la dispersa</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow">
+        <svg viewBox="0 0 800 500" style="width:100%; height:540px;">
+          <line x1="70" y1="40" x2="70" y2="440" stroke="var(--ink)" stroke-width="2"/>
+          <line x1="70" y1="440" x2="760" y2="440" stroke="var(--ink)" stroke-width="2"/>
+          <g stroke="var(--rule)" stroke-width="1">
+            <line x1="70" y1="120" x2="760" y2="120"/>
+            <line x1="70" y1="200" x2="760" y2="200"/>
+            <line x1="70" y1="280" x2="760" y2="280"/>
+            <line x1="70" y1="360" x2="760" y2="360"/>
+          </g>
+          <g font-size="24" fill="var(--ink-mute)" font-family="var(--ff-sans)">
+            <text x="60" y="48" text-anchor="end">100%</text>
+            <text x="60" y="128" text-anchor="end">80%</text>
+            <text x="60" y="208" text-anchor="end">60%</text>
+            <text x="60" y="288" text-anchor="end">40%</text>
+            <text x="60" y="368" text-anchor="end">20%</text>
+            <text x="60" y="448" text-anchor="end">0%</text>
+            <text x="415" y="478" text-anchor="middle" font-size="24" fill="var(--ink-soft)">% de features ordenadas por importancia</text>
+          </g>
+          <!-- Lorenz-like curves. Steeper = more concentrated -->
+          <!-- TAGCN (very concentrated) -->
+          <path class="cline cTAG" d="M 70 440 Q 250 100 760 40" stroke="#B84A2E" stroke-width="4" fill="none"/>
+          <!-- GAT -->
+          <path class="cline cGAT" d="M 70 440 Q 290 160 760 40" stroke="#6B8E23" stroke-width="4" fill="none"/>
+          <!-- SAGE -->
+          <path class="cline cSAGE" d="M 70 440 Q 340 220 760 40" stroke="#8A7A5C" stroke-width="4" fill="none"/>
+          <!-- GCN (dispersed) -->
+          <path class="cline cGCN" d="M 70 440 Q 400 300 760 40" stroke="#2C2A27" stroke-width="4" fill="none" stroke-dasharray="0"/>
+          <!-- Diagonal -->
+          <line x1="70" y1="440" x2="760" y2="40" stroke="var(--ink-mute)" stroke-width="1" stroke-dasharray="4 6"/>
+
+          <!-- Labels -->
+          <g font-size="24" font-family="var(--ff-sans)" font-weight="600">
+            <text x="440" y="85" fill="#B84A2E">TAGCN — 78%</text>
+            <text x="500" y="180" fill="#6B8E23">GAT — 66%</text>
+            <text x="550" y="260" fill="#8A7A5C">SAGE — 58%</text>
+            <text x="600" y="340" fill="#2C2A27">GCN — 44%</text>
+          </g>
+
+          <style>
+            .cline{stroke-dasharray:1400; stroke-dashoffset:1400;}
+            [data-deck-active] .cTAG{transition:stroke-dashoffset 1.4s ease-out .3s; stroke-dashoffset:0;}
+            [data-deck-active] .cGAT{transition:stroke-dashoffset 1.4s ease-out .6s; stroke-dashoffset:0;}
+            [data-deck-active] .cSAGE{transition:stroke-dashoffset 1.4s ease-out .9s; stroke-dashoffset:0;}
+            [data-deck-active] .cGCN{transition:stroke-dashoffset 1.4s ease-out 1.2s; stroke-dashoffset:0;}
+          </style>
+        </svg>
+      </div>
+      <div class="col grow fade-up d3" style="flex:.8; gap:28px;">
+        <p class="body" style="font-size:30px;">Concentración acumulada en el <b style="color:var(--ink);">top-10% de features</b> (curva tipo Lorenz):</p>
+        <div class="card" style="background:var(--hl); border-color:var(--accent-soft);">
+          <p class="body" style="font-size:28px; color:var(--ink); line-height:1.4;">
+            TAGCN requiere verificar <b>~17 features</b> de 166. GCN exige revisar más de <b>70&nbsp;features</b>. En términos operativos, <b>la diferencia entre auditable e inauditable</b>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Resultados</span><span class="page">18</span></div>
+  </section>
+
+  <!-- ============================ 19 · MATRIZ DE RECOMENDACIÓN ============================ -->
+  <section class="slide" data-label="Matriz recomendación">
+    <div class="eyebrow fade-up">Síntesis operativa</div>
+    <h2 class="h-head fade-up d1">Matriz de recomendación — Arquitectura × Explicador × Balanceo</h2>
+
+    <div class="row fade-up d2" style="margin-top:36px; gap:16px; align-items:stretch;">
+      <div style="width:180px;"></div>
+      <div class="grow" style="flex:1; text-align:center; padding:10px; font-size:26px; color:var(--ink-mute); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">1:1</div>
+      <div class="grow" style="flex:1; text-align:center; padding:10px; font-size:26px; color:var(--ink-mute); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">1:10</div>
+      <div class="grow" style="flex:1; text-align:center; padding:10px; font-size:26px; color:var(--ink-mute); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">1:50</div>
+      <div class="grow" style="flex:1; text-align:center; padding:10px; font-size:26px; color:var(--ink-mute); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">1:100</div>
+    </div>
+
+    <!-- rows -->
+    <script>/* cells generated inline for static render */</script>
+
+    <div class="fade-up d3 row" style="gap:16px; margin-top:4px;">
+      <div style="width:180px; display:flex; align-items:center; font-family:var(--ff-serif); font-weight:600; font-size:26px;">GCN</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#E9E0CF; text-align:center; font-weight:600; color:var(--ink);">apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#E9E0CF; text-align:center; color:var(--ink-soft);">marginal</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#D6CFC0; text-align:center; color:var(--ink-mute);">no apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#D6CFC0; text-align:center; color:var(--ink-mute);">no apto</div>
+    </div>
+    <div class="fade-up d4 row" style="gap:16px; margin-top:12px;">
+      <div style="width:180px; display:flex; align-items:center; font-family:var(--ff-serif); font-weight:600; font-size:26px;">GraphSAGE</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#DCE3C7; text-align:center; color:var(--ink); font-weight:600;">apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#DCE3C7; text-align:center; color:var(--ink); font-weight:600;">apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#E9E0CF; text-align:center; color:var(--ink-soft);">marginal</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#D6CFC0; text-align:center; color:var(--ink-mute);">no apto</div>
+    </div>
+    <div class="fade-up d5 row" style="gap:16px; margin-top:12px;">
+      <div style="width:180px; display:flex; align-items:center; font-family:var(--ff-serif); font-weight:600; font-size:26px;">GAT</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#DCE3C7; text-align:center; color:var(--ink); font-weight:600;">apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#DCE3C7; text-align:center; color:var(--ink); font-weight:600;">apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#DCE3C7; text-align:center; color:var(--ink); font-weight:600;">apto</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#E9E0CF; text-align:center; color:var(--ink-soft);">marginal</div>
+    </div>
+    <div class="fade-up d6 row" style="gap:16px; margin-top:12px;">
+      <div style="width:180px; display:flex; align-items:center; font-family:var(--ff-serif); font-weight:600; font-size:26px; color:var(--accent);">TAGCN</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#E4A990; text-align:center; color:#fff; font-weight:600;">óptimo</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#E4A990; text-align:center; color:#fff; font-weight:600;">óptimo</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#DCA085; text-align:center; color:#fff; font-weight:600;">óptimo</div>
+      <div class="grow" style="flex:1; padding:22px; font-size:26px; background:#C97E5F; text-align:center; color:#fff; font-weight:600;">óptimo</div>
+    </div>
+
+    <div class="fade-up d6" style="margin-top:42px; padding:28px 36px; background:var(--dark); color:var(--bg);">
+      <div class="row" style="gap:40px; align-items:center;">
+        <div class="small" style="color:var(--accent-soft); font-weight:600; letter-spacing:.12em; text-transform:uppercase; flex-shrink:0;">Configuración recomendada</div>
+        <p class="body" style="font-family:var(--ff-serif); font-size:32px; color:var(--bg); margin:0;">
+          <b>TAGCN (K=3) + Focal Loss + GNNShap</b> — F1 ≥ 0.83 · MCC ≥ 0.74 · Jaccard ≥ 0.62
+        </p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Resultados</span><span class="page">19</span></div>
+  </section>
+
+  <!-- ============================ 20 · CONCLUSIONES ============================ -->
+  <section class="slide" data-label="Conclusiones">
+    <div class="eyebrow fade-up">Cierre</div>
+    <h2 class="h-head fade-up d1">Conclusiones y aportes</h2>
+
+    <div class="row" style="margin-top:40px; gap:48px;">
+      <div class="grow fade-up d2">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-bottom:18px;">Hallazgos</div>
+        <ul class="clean">
+          <li>El desbalance degrada sistemáticamente la estabilidad: Jaccard cae hasta <b>4×</b> entre 1:1 y 1:100</li>
+          <li>La arquitectura GNN importa más que el explicador: <b>TAGCN</b> domina en ambos ejes</li>
+          <li>Focal Loss es complementario, no sustituto, del diseño arquitectónico</li>
+          <li>La tríada óptima es <b>TAGCN + Focal + GNNShap</b></li>
+        </ul>
+      </div>
+      <div class="grow fade-up d3">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase; margin-bottom:18px;">Aportes y trabajo futuro</div>
+        <ul class="clean">
+          <li><b>Académico:</b> primer mapeo empírico A × E × B sobre Elliptic</li>
+          <li><b>Práctico:</b> matriz de recomendación para despliegue auditable</li>
+          <li><b>Futuro:</b> extender a otros datasets AML y drift temporal</li>
+          <li><b>Futuro:</b> explicadores contrafactuales y GraphSMOTE en v2</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Conclusiones</span><span class="page">20</span></div>
+  </section>
+
+  <!-- ============================ SECCIÓN ANEXOS ============================ -->
+  <section class="slide section-slide" data-label="Anexos">
+    <div>
+      <div class="eyebrow fade-up">Apéndices técnicos</div>
+      <div class="h-section fade-up d1" style="font-size:180px;">Anexos</div>
+    </div>
+    <div class="row fade-up d3" style="align-items:flex-end; gap:60px; color:rgba(255,255,255,.72); font-size:28px;">
+      <div style="max-width:1100px; line-height:1.45; font-family:var(--ff-serif); font-style:italic; font-size:36px;">
+        Ruta conceptual desde el MLP hasta la estabilidad XAI — 15 láminas complementarias
+      </div>
+      <div style="margin-left:auto; text-align:right; font-size:24px; letter-spacing:.14em; text-transform:uppercase;">A · 15</div>
+    </div>
+  </section>
+
+  <!-- ============================ A.1 MLP ============================ -->
+  <section class="slide" data-label="A1 · MLP">
+    <div class="eyebrow fade-up">Anexo A.1 · Punto de partida</div>
+    <h2 class="h-head fade-up d1">Perceptrón multicapa: el bloque fundamental</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.2;">
+        <svg viewBox="0 0 700 460" style="width:100%; height:480px;">
+          <!-- input layer -->
+          <g fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="100" cy="80" r="22"/><circle cx="100" cy="160" r="22"/><circle cx="100" cy="240" r="22"/><circle cx="100" cy="320" r="22"/><circle cx="100" cy="400" r="22"/>
+          </g>
+          <!-- hidden -->
+          <g fill="var(--support2)" opacity=".85" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="320" cy="120" r="22"/><circle cx="320" cy="200" r="22"/><circle cx="320" cy="280" r="22"/><circle cx="320" cy="360" r="22"/>
+          </g>
+          <!-- output -->
+          <g fill="var(--accent)" stroke="var(--dark)" stroke-width="1.5">
+            <circle cx="560" cy="200" r="26"/><circle cx="560" cy="280" r="26"/>
+          </g>
+          <!-- connections -->
+          <g stroke="var(--ink-mute)" stroke-width=".8" opacity=".55" fill="none">
+            <!-- in -> hidden (20 lines) -->
+            <line x1="122" y1="80" x2="298" y2="120"/><line x1="122" y1="80" x2="298" y2="200"/><line x1="122" y1="80" x2="298" y2="280"/><line x1="122" y1="80" x2="298" y2="360"/>
+            <line x1="122" y1="160" x2="298" y2="120"/><line x1="122" y1="160" x2="298" y2="200"/><line x1="122" y1="160" x2="298" y2="280"/><line x1="122" y1="160" x2="298" y2="360"/>
+            <line x1="122" y1="240" x2="298" y2="120"/><line x1="122" y1="240" x2="298" y2="200"/><line x1="122" y1="240" x2="298" y2="280"/><line x1="122" y1="240" x2="298" y2="360"/>
+            <line x1="122" y1="320" x2="298" y2="120"/><line x1="122" y1="320" x2="298" y2="200"/><line x1="122" y1="320" x2="298" y2="280"/><line x1="122" y1="320" x2="298" y2="360"/>
+            <line x1="122" y1="400" x2="298" y2="120"/><line x1="122" y1="400" x2="298" y2="200"/><line x1="122" y1="400" x2="298" y2="280"/><line x1="122" y1="400" x2="298" y2="360"/>
+            <!-- hidden -> out -->
+            <line x1="342" y1="120" x2="534" y2="200"/><line x1="342" y1="120" x2="534" y2="280"/>
+            <line x1="342" y1="200" x2="534" y2="200"/><line x1="342" y1="200" x2="534" y2="280"/>
+            <line x1="342" y1="280" x2="534" y2="200"/><line x1="342" y1="280" x2="534" y2="280"/>
+            <line x1="342" y1="360" x2="534" y2="200"/><line x1="342" y1="360" x2="534" y2="280"/>
+          </g>
+          <!-- labels -->
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)" text-anchor="middle">
+            <text x="100" y="444">x ∈ ℝⁿ</text>
+            <text x="320" y="420">h = σ(Wx + b)</text>
+            <text x="560" y="344">ŷ</text>
+          </g>
+        </svg>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Un MLP apila capas <code>h = σ(Wx + b)</code> para aproximar funciones arbitrarias.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean" style="margin-top:0;">
+          <li>Universal approximation theorem</li>
+          <li>Procesa vectores <b>aislados</b></li>
+          <li>Ignora relaciones entre instancias</li>
+          <li>Por eso no basta para redes transaccionales</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.1</span><span class="page">A.1</span></div>
+  </section>
+
+  <!-- ============================ A.2 GRAFO DIRIGIDO ============================ -->
+  <section class="slide" data-label="A2 · Grafo dirigido">
+    <div class="eyebrow fade-up">Anexo A.2 · Estructura de datos</div>
+    <h2 class="h-head fade-up d1">Grafo dirigido atribuido: nodos, aristas, features</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.3;">
+        <svg viewBox="0 0 800 500" style="width:100%; height:520px;">
+          <defs><marker id="arr2" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--ink)"/></marker></defs>
+          <!-- nodes -->
+          <g>
+            <g class="node n1"><circle cx="160" cy="130" r="36" fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="2"/><text x="160" y="138" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="var(--ink)">v₁</text></g>
+            <g class="node n2"><circle cx="400" cy="90" r="36" fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="2"/><text x="400" y="98" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="var(--ink)">v₂</text></g>
+            <g class="node n3"><circle cx="640" cy="160" r="36" fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="2"/><text x="640" y="168" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="var(--ink)">v₃</text></g>
+            <g class="node n4"><circle cx="300" cy="320" r="36" fill="var(--accent)" stroke="var(--dark)" stroke-width="2"/><text x="300" y="328" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="#fff">v₄</text></g>
+            <g class="node n5"><circle cx="560" cy="360" r="36" fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="2"/><text x="560" y="368" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="var(--ink)">v₅</text></g>
+          </g>
+          <!-- edges -->
+          <g stroke="var(--ink)" stroke-width="2" fill="none" class="edges">
+            <line class="edg" x1="196" y1="130" x2="366" y2="94" marker-end="url(#arr2)"/>
+            <line class="edg" x1="436" y1="92" x2="608" y2="154" marker-end="url(#arr2)"/>
+            <line class="edg" x1="188" y1="158" x2="274" y2="290" marker-end="url(#arr2)"/>
+            <line class="edg" x1="336" y1="320" x2="524" y2="358" marker-end="url(#arr2)"/>
+            <line class="edg" x1="608" y1="180" x2="558" y2="326" marker-end="url(#arr2)"/>
+          </g>
+          <!-- feature badges -->
+          <g font-family="var(--ff-mono)" font-size="24" fill="var(--ink-mute)">
+            <text x="160" y="200" text-anchor="middle">x₁ ∈ ℝ¹⁶⁶</text>
+            <text x="400" y="42" text-anchor="middle">x₂</text>
+            <text x="640" y="230" text-anchor="middle">x₃ ∈ ℝ¹⁶⁶</text>
+            <text x="300" y="385" text-anchor="middle" fill="var(--accent)" font-weight="bold">ilícito</text>
+            <text x="560" y="418" text-anchor="middle">x₅ ∈ ℝ¹⁶⁶</text>
+          </g>
+          <style>
+            .edg{stroke-dasharray:300; stroke-dashoffset:300;}
+            [data-deck-active] .edg{transition:stroke-dashoffset 1s ease-out; stroke-dashoffset:0;}
+            [data-deck-active] .edg:nth-child(2){transition-delay:.15s}
+            [data-deck-active] .edg:nth-child(3){transition-delay:.3s}
+            [data-deck-active] .edg:nth-child(4){transition-delay:.45s}
+            [data-deck-active] .edg:nth-child(5){transition-delay:.6s}
+            .node{opacity:0; transform-origin:center; transform:scale(.6); transition:opacity .5s, transform .5s cubic-bezier(.2,1.4,.5,1);}
+            [data-deck-active] .node{opacity:1; transform:scale(1);}
+            [data-deck-active] .n2{transition-delay:.1s} [data-deck-active] .n3{transition-delay:.2s}
+            [data-deck-active] .n4{transition-delay:.3s} [data-deck-active] .n5{transition-delay:.4s}
+          </style>
+        </svg>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg"><b>G = (V, E, X)</b></p>
+        <ul class="clean" style="margin-top:14px;">
+          <li><b>V</b> — nodos (transacciones)</li>
+          <li><b>E ⊂ V × V</b> — aristas dirigidas (flujos de fondos)</li>
+          <li><b>X ∈ ℝ<sup>|V|×166</sup></b> — matriz de features</li>
+          <li><b>y</b> — etiqueta parcial: lícito / ilícito / desconocido</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.2</span><span class="page">A.2</span></div>
+  </section>
+
+  <!-- ============================ A.3 MESSAGE PASSING DETALLADO ============================ -->
+  <section class="slide" data-label="A3 · Message passing">
+    <div class="eyebrow fade-up">Anexo A.3 · Formulación</div>
+    <h2 class="h-head fade-up d1">El paso de mensajes, formalizado</h2>
+
+    <div class="row" style="margin-top:36px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.2;">
+        <div class="card" style="background:var(--bg); padding:40px;">
+          <div class="small" style="color:var(--ink-mute); letter-spacing:.1em; text-transform:uppercase; font-weight:600; margin-bottom:12px;">1 · Mensaje</div>
+          <p style="font-family:var(--ff-mono); font-size:28px; color:var(--ink); margin:0;">m<sub>u→v</sub><sup>(k)</sup> = φ(h<sub>u</sub><sup>(k-1)</sup>, h<sub>v</sub><sup>(k-1)</sup>, e<sub>uv</sub>)</p>
+        </div>
+        <div class="card" style="background:var(--bg); padding:40px; margin-top:16px;">
+          <div class="small" style="color:var(--ink-mute); letter-spacing:.1em; text-transform:uppercase; font-weight:600; margin-bottom:12px;">2 · Agregación (permutation-invariant)</div>
+          <p style="font-family:var(--ff-mono); font-size:28px; color:var(--ink); margin:0;">a<sub>v</sub><sup>(k)</sup> = □<sub>u ∈ N(v)</sub> m<sub>u→v</sub><sup>(k)</sup></p>
+        </div>
+        <div class="card" style="background:var(--bg); padding:40px; margin-top:16px;">
+          <div class="small" style="color:var(--ink-mute); letter-spacing:.1em; text-transform:uppercase; font-weight:600; margin-bottom:12px;">3 · Actualización</div>
+          <p style="font-family:var(--ff-mono); font-size:28px; color:var(--ink); margin:0;">h<sub>v</sub><sup>(k)</sup> = ψ(h<sub>v</sub><sup>(k-1)</sup>, a<sub>v</sub><sup>(k)</sup>)</p>
+        </div>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">φ, ψ son redes diferenciables; □ es <b>sum, mean, max</b> o attention-weighted.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>K capas → receptive field de K saltos</li>
+          <li>Invarianza al orden de los vecinos</li>
+          <li>Compartición de parámetros</li>
+          <li>Diferenciable end-to-end</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.3</span><span class="page">A.3</span></div>
+  </section>
+
+  <!-- ============================ A.4 COMPARATIVA ARQUITECTURAS ============================ -->
+  <section class="slide" data-label="A4 · Comparativa GNN">
+    <div class="eyebrow fade-up">Anexo A.4 · Comparativa visual</div>
+    <h2 class="h-head fade-up d1">Cuatro formas de agregar vecinos</h2>
+
+    <div class="row" style="margin-top:36px; gap:24px; align-items:stretch;">
+      <!-- GCN -->
+      <div class="fade-up d2 grow" style="flex:1; background:var(--bg-alt); padding:28px;">
+        <svg viewBox="0 0 200 160" style="width:100%; height:200px;">
+          <g fill="var(--bg)" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="50" cy="40" r="14"/><circle cx="150" cy="40" r="14"/><circle cx="50" cy="120" r="14"/><circle cx="150" cy="120" r="14"/>
+          </g>
+          <g stroke="var(--ink-soft)" stroke-width="1.5">
+            <line x1="62" y1="48" x2="88" y2="72"/><line x1="138" y1="48" x2="112" y2="72"/>
+            <line x1="62" y1="112" x2="88" y2="88"/><line x1="138" y1="112" x2="112" y2="88"/>
+          </g>
+          <circle cx="100" cy="80" r="18" fill="var(--accent)"/>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; color:var(--ink); margin-top:16px;">GCN</h4>
+        <p class="small" style="color:var(--ink-soft);">Promedio simétricamente normalizado</p>
+        <p class="micro" style="margin-top:10px; font-family:var(--ff-mono); color:var(--ink-mute);">h' = D⁻¹ᐟ² Ã D⁻¹ᐟ² h W</p>
+      </div>
+      <!-- SAGE -->
+      <div class="fade-up d3 grow" style="flex:1; background:var(--bg-alt); padding:28px;">
+        <svg viewBox="0 0 200 160" style="width:100%; height:200px;">
+          <g fill="var(--bg)" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="40" cy="30" r="12"/><circle cx="160" cy="30" r="12"/><circle cx="30" cy="80" r="12"/><circle cx="170" cy="80" r="12"/>
+            <circle cx="40" cy="130" r="12" opacity=".3" stroke-dasharray="3 3"/><circle cx="160" cy="130" r="12" opacity=".3" stroke-dasharray="3 3"/>
+          </g>
+          <g stroke="var(--support)" stroke-width="2">
+            <line x1="52" y1="36" x2="84" y2="72"/><line x1="148" y1="36" x2="116" y2="72"/>
+            <line x1="42" y1="80" x2="82" y2="80"/><line x1="158" y1="80" x2="118" y2="80"/>
+          </g>
+          <circle cx="100" cy="80" r="18" fill="var(--accent)"/>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; color:var(--ink); margin-top:16px;">GraphSAGE</h4>
+        <p class="small" style="color:var(--ink-soft);">Muestreo fijo + concat</p>
+        <p class="micro" style="margin-top:10px; font-family:var(--ff-mono); color:var(--ink-mute);">h' = σ([h ∥ AGG(sample N(v))]·W)</p>
+      </div>
+      <!-- GAT -->
+      <div class="fade-up d4 grow" style="flex:1; background:var(--bg-alt); padding:28px;">
+        <svg viewBox="0 0 200 160" style="width:100%; height:200px;">
+          <g fill="var(--bg)" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="50" cy="40" r="14"/><circle cx="150" cy="40" r="14"/><circle cx="50" cy="120" r="14"/><circle cx="150" cy="120" r="14"/>
+          </g>
+          <g stroke-linecap="round">
+            <line x1="62" y1="48" x2="88" y2="72" stroke="var(--accent)" stroke-width="4"/>
+            <line x1="138" y1="48" x2="112" y2="72" stroke="var(--accent)" stroke-width="1.2" opacity=".5"/>
+            <line x1="62" y1="112" x2="88" y2="88" stroke="var(--accent)" stroke-width="2.2" opacity=".7"/>
+            <line x1="138" y1="112" x2="112" y2="88" stroke="var(--accent)" stroke-width="3.2"/>
+          </g>
+          <circle cx="100" cy="80" r="18" fill="var(--accent)"/>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; color:var(--ink); margin-top:16px;">GAT</h4>
+        <p class="small" style="color:var(--ink-soft);">Atención α<sub>uv</sub> multi-head</p>
+        <p class="micro" style="margin-top:10px; font-family:var(--ff-mono); color:var(--ink-mute);">h' = Σ α<sub>uv</sub> · W·h<sub>u</sub></p>
+      </div>
+      <!-- TAGCN -->
+      <div class="fade-up d5 grow" style="flex:1; background:var(--bg-alt); padding:28px; border:2px solid var(--accent);">
+        <svg viewBox="0 0 200 160" style="width:100%; height:200px;">
+          <g fill="var(--bg)" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="30" cy="30" r="10"/><circle cx="170" cy="30" r="10"/><circle cx="15" cy="130" r="10"/><circle cx="185" cy="130" r="10"/>
+            <circle cx="60" cy="60" r="10"/><circle cx="140" cy="60" r="10"/>
+          </g>
+          <g stroke="var(--accent)" stroke-width="1.5" opacity=".7" fill="none">
+            <path d="M30 30 L60 60 L100 80"/><path d="M170 30 L140 60 L100 80"/>
+            <path d="M15 130 Q 60 100 100 80"/><path d="M185 130 Q 140 100 100 80"/>
+          </g>
+          <circle cx="100" cy="80" r="18" fill="var(--accent)"/>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; color:var(--ink); margin-top:16px;">TAGCN</h4>
+        <p class="small" style="color:var(--ink-soft);">Filtro polinomial, K saltos</p>
+        <p class="micro" style="margin-top:10px; font-family:var(--ff-mono); color:var(--ink-mute);">h' = Σ<sub>k=0..K</sub> Gᵏ · h · W<sub>k</sub></p>
+      </div>
+    </div>
+
+    <p class="fade-up d6 small" style="margin-top:40px; font-style:italic; color:var(--ink-soft);">Todas comparten el paradigma de paso de mensajes; difieren en <b>cómo</b> pesan, muestrean o extienden el vecindario.</p>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.4</span><span class="page">A.4</span></div>
+  </section>
+
+  <!-- ============================ A.5 GNNEXPLAINER ============================ -->
+  <section class="slide" data-label="A5 · GNNExplainer">
+    <div class="eyebrow fade-up">Anexo A.5 · Explicador 1</div>
+    <h2 class="h-head fade-up d1">GNNExplainer — máscara optimizada por instancia</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.2;">
+        <svg viewBox="0 0 800 460" style="width:100%; height:500px;">
+          <defs>
+            <linearGradient id="maskG" x1="0" x2="1">
+              <stop offset="0" stop-color="var(--accent)"/><stop offset="1" stop-color="var(--accent-soft)"/>
+            </linearGradient>
+          </defs>
+          <!-- Original subgraph -->
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="160" y="30">Subgrafo de cómputo</text>
+            <text x="620" y="30">Subgrafo explicativo</text>
+          </g>
+          <!-- Original nodes -->
+          <g fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="1.5">
+            <circle cx="80" cy="120" r="18"/><circle cx="160" cy="70" r="18"/><circle cx="260" cy="120" r="18"/>
+            <circle cx="80" cy="260" r="18"/><circle cx="260" cy="260" r="18"/><circle cx="160" cy="340" r="18"/>
+          </g>
+          <circle cx="170" cy="210" r="26" fill="var(--accent)" stroke="var(--dark)" stroke-width="2"/>
+          <text x="170" y="216" text-anchor="middle" fill="#fff" font-family="var(--ff-serif)" font-size="24">v</text>
+          <g stroke="var(--ink-soft)" stroke-width="1.5" opacity=".7">
+            <line x1="80" y1="120" x2="160" y2="188"/><line x1="160" y1="70" x2="170" y2="185"/>
+            <line x1="260" y1="120" x2="192" y2="190"/><line x1="80" y1="260" x2="148" y2="220"/>
+            <line x1="260" y1="260" x2="193" y2="220"/><line x1="160" y1="340" x2="172" y2="238"/>
+          </g>
+
+          <!-- Arrow -->
+          <g>
+            <line x1="340" y1="220" x2="460" y2="220" stroke="var(--ink)" stroke-width="2"/>
+            <polygon points="460,220 450,215 450,225" fill="var(--ink)"/>
+          <text x="400" y="200" text-anchor="middle" font-family="var(--ff-mono)" font-size="24" fill="var(--accent)">argmax MI</text>
+          </g>
+
+          <!-- Explanation subgraph -->
+          <g fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="1.5" opacity=".35">
+            <circle cx="560" cy="120" r="18"/><circle cx="640" cy="70" r="18"/><circle cx="740" cy="120" r="18"/>
+            <circle cx="640" cy="340" r="18"/>
+          </g>
+          <g fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="2">
+            <circle cx="560" cy="260" r="18"/><circle cx="740" cy="260" r="18"/>
+          </g>
+          <circle cx="650" cy="210" r="26" fill="var(--accent)" stroke="var(--dark)" stroke-width="2"/>
+          <text x="650" y="216" text-anchor="middle" fill="#fff" font-family="var(--ff-serif)" font-size="24">v</text>
+          <g stroke="url(#maskG)" stroke-width="4" class="mask">
+            <line x1="560" y1="260" x2="628" y2="220"/>
+            <line x1="740" y1="260" x2="673" y2="220"/>
+          </g>
+          <g stroke="var(--ink-soft)" stroke-width="1" opacity=".2">
+            <line x1="560" y1="120" x2="640" y2="188"/><line x1="640" y1="70" x2="650" y2="185"/>
+            <line x1="740" y1="120" x2="672" y2="190"/><line x1="640" y1="340" x2="652" y2="238"/>
+          </g>
+
+          <text x="400" y="430" text-anchor="middle" font-family="var(--ff-mono)" font-size="24" fill="var(--ink-soft)">max<sub>M</sub> I(Y; G<sub>M</sub>) − λ||M||₁</text>
+
+          <style>
+            .mask line{stroke-dasharray:200; stroke-dashoffset:200;}
+            [data-deck-active] .mask line{transition:stroke-dashoffset 1s ease-out .6s; stroke-dashoffset:0;}
+          </style>
+        </svg>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Optimiza una máscara continua sobre <b>aristas y features</b> del grafo de cómputo que <b>preserva</b> la predicción original.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>Máscara per-instancia</li>
+          <li>Maximiza información mutua</li>
+          <li>Regularización de sparsity</li>
+          <li><b>Fuente de inestabilidad:</b> inicialización aleatoria</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.5</span><span class="page">A.5</span></div>
+  </section>
+
+  <!-- ============================ A.6 PGEXPLAINER ============================ -->
+  <section class="slide" data-label="A6 · PGExplainer">
+    <div class="eyebrow fade-up">Anexo A.6 · Explicador 2</div>
+    <h2 class="h-head fade-up d1">PGExplainer — red generadora compartida</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.2;">
+        <svg viewBox="0 0 800 400" style="width:100%; height:440px;">
+          <!-- Input: edge embedding -->
+          <g>
+            <rect x="40" y="160" width="180" height="80" fill="var(--bg-alt)" stroke="var(--ink)" stroke-width="1.5"/>
+            <text x="130" y="195" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="var(--ink)">[h<sub>u</sub> ∥ h<sub>v</sub>]</text>
+            <text x="130" y="220" text-anchor="middle" font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">embedding de arista</text>
+          </g>
+          <!-- MLP -->
+          <g>
+            <rect x="300" y="120" width="200" height="160" fill="var(--support2)" opacity=".25" stroke="var(--ink)" stroke-width="1.5"/>
+            <text x="400" y="170" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="var(--ink)">MLP</text>
+            <text x="400" y="205" text-anchor="middle" font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">θ compartidos</text>
+            <text x="400" y="230" text-anchor="middle" font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">para todos los nodos</text>
+          </g>
+          <!-- Output -->
+          <g>
+            <rect x="580" y="160" width="180" height="80" fill="var(--accent)" opacity=".85"/>
+            <text x="670" y="205" text-anchor="middle" font-family="var(--ff-serif)" font-size="24" fill="#fff">p(e<sub>uv</sub> ∈ G*)</text>
+          </g>
+          <!-- arrows -->
+          <g stroke="var(--ink)" stroke-width="2" fill="var(--ink)">
+            <line x1="220" y1="200" x2="296" y2="200"/><polygon points="296,200 288,196 288,204"/>
+            <line x1="500" y1="200" x2="576" y2="200"/><polygon points="576,200 568,196 568,204"/>
+          </g>
+          <!-- Legend -->
+          <text x="400" y="360" text-anchor="middle" font-family="var(--ff-mono)" font-size="24" fill="var(--ink-soft)">
+            min<sub>θ</sub> Σ<sub>v</sub> CE(ŷ<sub>v</sub>, ŷ<sub>v</sub><sup>G*(θ)</sup>) + Ω(M)
+          </text>
+        </svg>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Un <b>único MLP</b> genera máscaras para todos los nodos. Entrenamiento colectivo.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>Generaliza a nodos no vistos (inductivo)</li>
+          <li>Más eficiente que per-instancia</li>
+          <li>Captura patrones <b>compartidos</b></li>
+          <li><b>Inestabilidad:</b> estocasticidad del entrenamiento</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.6</span><span class="page">A.6</span></div>
+  </section>
+
+  <!-- ============================ A.7 GNNSHAP ============================ -->
+  <section class="slide" data-label="A7 · GNNShap">
+    <div class="eyebrow fade-up">Anexo A.7 · Explicador 3</div>
+    <h2 class="h-head fade-up d1">GNNShap — valores de Shapley en grafos</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1;">
+        <div class="card" style="background:var(--bg); padding:36px;">
+          <div class="small" style="color:var(--ink-mute); letter-spacing:.1em; text-transform:uppercase; font-weight:600; margin-bottom:12px;">Valor de Shapley</div>
+          <p style="font-family:var(--ff-mono); font-size:24px; color:var(--ink); margin:0; line-height:1.5;">
+            φ<sub>i</sub> = Σ<sub>S⊆N\{i}</sub> [|S|!(n−|S|−1)!/n!] · [f(S∪{i}) − f(S)]
+          </p>
+        </div>
+        <hr class="rule" style="margin:28px 0;" />
+        <div class="col" style="gap:14px;">
+          <div><b style="font-family:var(--ff-serif); font-size:28px;">Eficiencia</b><p class="small" style="color:var(--ink-soft); margin:6px 0 0;">Σ φᵢ = f(N) − f(∅)</p></div>
+          <div><b style="font-family:var(--ff-serif); font-size:28px;">Simetría</b><p class="small" style="color:var(--ink-soft); margin:6px 0 0;">features equivalentes reciben el mismo valor</p></div>
+          <div><b style="font-family:var(--ff-serif); font-size:28px;">Monotonicidad</b><p class="small" style="color:var(--ink-soft); margin:6px 0 0;">contribuciones mayores → valores mayores</p></div>
+        </div>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <svg viewBox="0 0 500 440" style="width:100%; height:460px;">
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="250" y="24" text-anchor="middle">Ranking de features — TAGCN + SHAP</text>
+          </g>
+          <!-- bars -->
+          <g>
+            <rect x="120" y="55" width="340" height="24" fill="var(--accent)"/>
+            <text x="110" y="72" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f147</text>
+            <rect x="120" y="95" width="300" height="24" fill="var(--accent)" opacity=".9"/>
+            <text x="110" y="112" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f019</text>
+            <rect x="120" y="135" width="270" height="24" fill="var(--accent)" opacity=".8"/>
+            <text x="110" y="152" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f148</text>
+            <rect x="120" y="175" width="210" height="24" fill="var(--accent)" opacity=".7"/>
+            <text x="110" y="192" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f066</text>
+            <rect x="120" y="215" width="190" height="24" fill="var(--accent)" opacity=".6"/>
+            <text x="110" y="232" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f071</text>
+            <rect x="120" y="255" width="140" height="24" fill="var(--support2)" opacity=".7"/>
+            <text x="110" y="272" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f004</text>
+            <rect x="120" y="295" width="100" height="24" fill="var(--support2)" opacity=".6"/>
+            <text x="110" y="312" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f032</text>
+            <rect x="120" y="335" width="70" height="24" fill="var(--support2)" opacity=".4"/>
+            <text x="110" y="352" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f089</text>
+            <rect x="120" y="375" width="45" height="24" fill="var(--support2)" opacity=".3"/>
+            <text x="110" y="392" text-anchor="end" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">f112</text>
+          </g>
+          <text x="330" y="425" text-anchor="middle" font-size="24" fill="var(--ink-mute)">|φᵢ| — valor absoluto de atribución</text>
+        </svg>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.7</span><span class="page">A.7</span></div>
+  </section>
+
+  <!-- ============================ A.8 JACCARD ============================ -->
+  <section class="slide" data-label="A8 · Jaccard">
+    <div class="eyebrow fade-up">Anexo A.8 · Métrica 1</div>
+    <h2 class="h-head fade-up d1">Índice de Jaccard: estabilidad estructural</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.2;">
+        <svg viewBox="0 0 700 400" style="width:100%; height:440px;">
+          <!-- Two overlapping circles -->
+          <g>
+            <circle cx="280" cy="200" r="140" fill="var(--accent)" opacity=".35"/>
+            <circle cx="420" cy="200" r="140" fill="var(--support)" opacity=".35"/>
+          </g>
+          <g font-family="var(--ff-serif)" font-size="28" fill="var(--ink)" font-weight="600" text-anchor="middle">
+            <text x="200" y="208">E₁</text>
+            <text x="500" y="208">E₂</text>
+            <text x="350" y="215">E₁∩E₂</text>
+          </g>
+          <text x="350" y="370" text-anchor="middle" font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">J(E₁, E₂) = |E₁ ∩ E₂| / |E₁ ∪ E₂|</text>
+        </svg>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Similitud entre <b>conjuntos de aristas</b> explicativas producidas por el mismo explicador en dos réplicas.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li><b>J = 1.0</b> — subgrafos idénticos</li>
+          <li><b>J ≥ 0.7</b> — estabilidad aceptable para auditoría</li>
+          <li><b>J &lt; 0.5</b> — explicaciones diferentes; no auditable</li>
+          <li>Se promedia sobre C(n, 2) pares de réplicas</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.8</span><span class="page">A.8</span></div>
+  </section>
+
+  <!-- ============================ A.9 SPEARMAN ============================ -->
+  <section class="slide" data-label="A9 · Spearman">
+    <div class="eyebrow fade-up">Anexo A.9 · Métrica 2</div>
+    <h2 class="h-head fade-up d1">Correlación de Spearman: acuerdo de rankings</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1.2;">
+        <svg viewBox="0 0 700 460" style="width:100%; height:480px;">
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="120" y="30">Réplica 1</text>
+            <text x="540" y="30" text-anchor="end">Réplica 2</text>
+          </g>
+          <!-- left ranks -->
+          <g font-family="var(--ff-mono)" font-size="24" fill="var(--ink)">
+            <text x="120" y="90">1 · f147</text>
+            <text x="120" y="140">2 · f019</text>
+            <text x="120" y="190">3 · f148</text>
+            <text x="120" y="240">4 · f066</text>
+            <text x="120" y="290">5 · f071</text>
+            <text x="120" y="340">6 · f004</text>
+            <text x="120" y="390">7 · f032</text>
+          </g>
+          <g font-family="var(--ff-mono)" font-size="24" fill="var(--ink)" text-anchor="end">
+            <text x="580" y="90">1 · f147</text>
+            <text x="580" y="140">2 · f148</text>
+            <text x="580" y="190">3 · f019</text>
+            <text x="580" y="240">4 · f071</text>
+            <text x="580" y="290">5 · f066</text>
+            <text x="580" y="340">6 · f032</text>
+            <text x="580" y="390">7 · f004</text>
+          </g>
+          <g stroke="var(--accent)" stroke-width="2">
+            <line x1="260" y1="84" x2="430" y2="84"/>
+            <line x1="260" y1="134" x2="430" y2="184"/>
+            <line x1="260" y1="184" x2="430" y2="134"/>
+            <line x1="260" y1="234" x2="430" y2="284"/>
+            <line x1="260" y1="284" x2="430" y2="234"/>
+            <line x1="260" y1="334" x2="430" y2="384"/>
+            <line x1="260" y1="384" x2="430" y2="334"/>
+          </g>
+          <text x="350" y="440" text-anchor="middle" font-family="var(--ff-mono)" font-size="24" fill="var(--accent)">ρ = 1 − 6·Σd²<sub>i</sub> / n(n²−1) ≈ 0.86</text>
+        </svg>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Compara <b>el orden</b> de importancia, no los valores absolutos.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>Robusto a transformaciones monótonas</li>
+          <li>ρ = 1 → rankings idénticos</li>
+          <li>ρ = 0 → sin relación</li>
+          <li>Relevante para decisiones regulatorias</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.9</span><span class="page">A.9</span></div>
+  </section>
+
+  <!-- ============================ A.10 SHAP CONCENTRATION ============================ -->
+  <section class="slide" data-label="A10 · SHAP Conc.">
+    <div class="eyebrow fade-up">Anexo A.10 · Métrica 3</div>
+    <h2 class="h-head fade-up d1">SHAP Concentration: parsimonia auditable</h2>
+
+    <div class="row" style="margin-top:32px; gap:48px;">
+      <div class="grow fade-up d2" style="flex:1;">
+        <p class="body body--lg">¿Qué fracción de la atribución total recae en el <b>top-k</b> de features?</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <p class="body" style="font-family:var(--ff-mono); font-size:24px; color:var(--ink); background:var(--bg-alt); padding:22px 28px; border:1px solid var(--rule);">
+          C(k) = Σ<sub>i ∈ top-k</sub> |φ<sub>i</sub>| / Σ<sub>i</sub> |φ<sub>i</sub>|
+        </p>
+        <p class="small" style="margin-top:20px; color:var(--ink-soft);">He et al. (2026) propusieron esta métrica como proxy directo de <b>auditabilidad</b>: una alta concentración significa que el analista necesita revisar pocos factores.</p>
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <svg viewBox="0 0 600 400" style="width:100%; height:440px;">
+          <!-- Concentrated vs dispersed histograms -->
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="150" y="24" text-anchor="middle" fill="var(--accent)" font-weight="600">Concentrado (TAGCN)</text>
+            <text x="450" y="24" text-anchor="middle" fill="var(--ink)" font-weight="600">Disperso (GCN)</text>
+          </g>
+          <!-- TAGCN bars -->
+          <g fill="var(--accent)">
+            <rect x="40" y="100" width="16" height="280"/>
+            <rect x="60" y="160" width="16" height="220"/>
+            <rect x="80" y="210" width="16" height="170"/>
+            <rect x="100" y="260" width="16" height="120"/>
+            <rect x="120" y="300" width="16" height="80"/>
+            <rect x="140" y="330" width="16" height="50"/>
+            <rect x="160" y="350" width="16" height="30"/>
+            <rect x="180" y="360" width="16" height="20"/>
+            <rect x="200" y="366" width="16" height="14"/>
+            <rect x="220" y="372" width="16" height="8"/>
+            <rect x="240" y="375" width="16" height="5"/>
+          </g>
+          <!-- GCN bars (flatter) -->
+          <g fill="var(--ink)" opacity=".7">
+            <rect x="340" y="220" width="16" height="160"/>
+            <rect x="360" y="230" width="16" height="150"/>
+            <rect x="380" y="235" width="16" height="145"/>
+            <rect x="400" y="240" width="16" height="140"/>
+            <rect x="420" y="245" width="16" height="135"/>
+            <rect x="440" y="250" width="16" height="130"/>
+            <rect x="460" y="255" width="16" height="125"/>
+            <rect x="480" y="260" width="16" height="120"/>
+            <rect x="500" y="265" width="16" height="115"/>
+            <rect x="520" y="270" width="16" height="110"/>
+            <rect x="540" y="275" width="16" height="105"/>
+          </g>
+          <g stroke="var(--ink)" stroke-width="1">
+            <line x1="30" y1="380" x2="270" y2="380"/>
+            <line x1="330" y1="380" x2="570" y2="380"/>
+          </g>
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="150" y="398" text-anchor="middle">features ordenadas por |φ|</text>
+            <text x="450" y="398" text-anchor="middle">features ordenadas por |φ|</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.10</span><span class="page">A.10</span></div>
+  </section>
+
+  <!-- ============================ A.11 FOCAL vs CW ============================ -->
+  <section class="slide" data-label="A11 · Focal / CW">
+    <div class="eyebrow fade-up">Anexo A.11 · Balanceo</div>
+    <h2 class="h-head fade-up d1">Class weighting y Focal Loss</h2>
+
+    <div class="row" style="margin-top:32px; gap:32px;">
+      <div class="grow fade-up d2" style="flex:1; background:var(--bg-alt); padding:36px;">
+        <h4 style="font-family:var(--ff-serif); font-size:36px; margin:0 0 10px;">Class Weighting</h4>
+        <p class="small" style="color:var(--ink-mute); margin:0 0 20px;">Pondera por inversa de frecuencia</p>
+        <p style="font-family:var(--ff-mono); font-size:22px; color:var(--ink); margin:0; background:var(--bg); padding:18px 22px; border:1px solid var(--rule);">
+          L = −Σ w<sub>y</sub> · log(p<sub>y</sub>)
+        </p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>Peso fijo por clase</li>
+          <li>Trata igual a muestras fáciles y difíciles</li>
+          <li>Insuficiente en desbalance extremo</li>
+        </ul>
+      </div>
+      <div class="grow fade-up d3" style="flex:1; background:var(--bg-alt); padding:36px; border:2px solid var(--accent);">
+        <h4 style="font-family:var(--ff-serif); font-size:36px; margin:0 0 10px;">Focal Loss <span style="color:var(--accent); font-size:22px;">★</span></h4>
+        <p class="small" style="color:var(--ink-mute); margin:0 0 20px;">Pondera dinámicamente por dificultad</p>
+        <p style="font-family:var(--ff-mono); font-size:22px; color:var(--ink); margin:0; background:var(--bg); padding:18px 22px; border:1px solid var(--rule);">
+          L = −α<sub>y</sub> · (1 − p<sub>y</sub>)<sup>γ</sup> · log(p<sub>y</sub>)
+        </p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>γ controla el énfasis en muestras difíciles</li>
+          <li>Reduce automáticamente muestras fáciles</li>
+          <li>Mejor desempeño con TAGCN y GAT</li>
+        </ul>
+      </div>
+      <div class="grow fade-up d4" style="flex:.9;">
+        <svg viewBox="0 0 300 420" style="width:100%; height:440px;">
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)"><text x="150" y="22" text-anchor="middle">Pérdida vs probabilidad de clase correcta</text></g>
+          <line x1="40" y1="40" x2="40" y2="360" stroke="var(--ink)" stroke-width="1.5"/>
+          <line x1="40" y1="360" x2="280" y2="360" stroke="var(--ink)" stroke-width="1.5"/>
+          <!-- CE -->
+          <path d="M 40 40 Q 100 120 160 240 T 280 358" stroke="var(--ink)" stroke-width="2.5" fill="none"/>
+          <!-- Focal γ=2 -->
+          <path d="M 40 100 Q 120 300 200 352 T 280 359" stroke="var(--accent)" stroke-width="3" fill="none"/>
+          <g font-family="var(--ff-sans)" font-size="24" fill="var(--ink-mute)">
+            <text x="100" y="385" text-anchor="middle">p_y →</text>
+            <text x="175" y="100" fill="var(--ink)">CE</text>
+            <text x="190" y="210" fill="var(--accent)">Focal γ=2</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.11</span><span class="page">A.11</span></div>
+  </section>
+
+  <!-- ============================ A.12 OVERSMOOTHING ============================ -->
+  <section class="slide" data-label="A12 · Oversmoothing">
+    <div class="eyebrow fade-up">Anexo A.12 · Limitación GNN</div>
+    <h2 class="h-head fade-up d1">Oversmoothing: cuando las capas borran la información</h2>
+
+    <div class="row" style="margin-top:36px; gap:40px;">
+      <div class="img-frame fade-up d2" style="flex:1.2; height:560px;">
+        <img src="0_research_and_planning/semana_1/notebooks/figuras/oversmoothing_analysis.png" alt="Oversmoothing" />
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Al apilar muchas capas GNN, las representaciones de los nodos <b>convergen</b> y se vuelven indistinguibles.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>Cada capa GCN suaviza por vecindario</li>
+          <li>Con L capas, todos los nodos de la componente convergen al mismo embedding</li>
+          <li>TAGCN lo mitiga expandiendo el receptive field sin apilar</li>
+          <li>Por eso TAGCN con K=3 iguala o supera a GCN de 3 capas</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.12</span><span class="page">A.12</span></div>
+  </section>
+
+  <!-- ============================ A.13 HOMOFILIA ============================ -->
+  <section class="slide" data-label="A13 · Homofilia">
+    <div class="eyebrow fade-up">Anexo A.13 · Propiedad estructural</div>
+    <h2 class="h-head fade-up d1">Homofilia: ¿vecinos se parecen?</h2>
+
+    <div class="row" style="margin-top:36px; gap:40px;">
+      <div class="img-frame fade-up d2" style="flex:1.2; height:560px;">
+        <img src="0_research_and_planning/semana_1/notebooks/figuras/3_homofilia_especifica_clase.png" alt="Homofilia por clase" />
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Homofilia = probabilidad de que dos nodos conectados compartan la misma etiqueta.</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li>GCN y GAT asumen alta homofilia</li>
+          <li>En Elliptic la homofilia de la clase ilícita es moderada</li>
+          <li>Los ilícitos se mezclan con lícitos para ocultarse</li>
+          <li>Justifica arquitecturas que ponderan vecinos (GAT) o expanden el alcance (TAGCN)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.13</span><span class="page">A.13</span></div>
+  </section>
+
+  <!-- ============================ A.14 FIDELITY ============================ -->
+  <section class="slide" data-label="A14 · Fidelity">
+    <div class="eyebrow fade-up">Anexo A.14 · Validación XAI</div>
+    <h2 class="h-head fade-up d1">Fidelity⁺ y Fidelity⁻: ¿la explicación refleja al modelo?</h2>
+
+    <div class="row" style="margin-top:32px; gap:40px;">
+      <div class="grow fade-up d2" style="flex:1; background:var(--bg-alt); padding:36px;">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Fidelity⁺</div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; margin:14px 0;">Al <b>eliminar</b> el subgrafo explicativo, la predicción debe caer</h4>
+        <p style="font-family:var(--ff-mono); font-size:22px; color:var(--ink); background:var(--bg); padding:16px 22px; border:1px solid var(--rule);">
+          F⁺ = f(G) − f(G \ G*)
+        </p>
+        <p class="small" style="color:var(--ink-soft); margin-top:16px;">Alto F⁺ → G* es suficiente para la predicción.</p>
+      </div>
+      <div class="grow fade-up d3" style="flex:1; background:var(--bg-alt); padding:36px;">
+        <div class="small" style="color:var(--accent); font-weight:600; letter-spacing:.12em; text-transform:uppercase;">Fidelity⁻</div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; margin:14px 0;">Al <b>mantener solo</b> el subgrafo explicativo, la predicción debe preservarse</h4>
+        <p style="font-family:var(--ff-mono); font-size:22px; color:var(--ink); background:var(--bg); padding:16px 22px; border:1px solid var(--rule);">
+          F⁻ = f(G) − f(G*)
+        </p>
+        <p class="small" style="color:var(--ink-soft); margin-top:16px;">Bajo F⁻ → G* es necesario para la predicción.</p>
+      </div>
+    </div>
+
+    <div class="fade-up d4" style="margin-top:40px; padding:28px 36px; background:var(--dark); color:var(--bg);">
+      <p class="body" style="color:var(--bg); margin:0; font-family:var(--ff-serif); font-size:30px; line-height:1.35;">
+        <b>Fidelity</b> mide si la explicación es veraz; <b>Stability</b> mide si es reproducible. Un despliegue regulado exige <b>ambas</b>.
+      </p>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.14</span><span class="page">A.14</span></div>
+  </section>
+
+  <!-- ============================ A.15 EGO NETWORKS ============================ -->
+  <section class="slide" data-label="A15 · Ego networks">
+    <div class="eyebrow fade-up">Anexo A.15 · Evidencia exploratoria</div>
+    <h2 class="h-head fade-up d1">Ego-networks de transacciones ilícitas</h2>
+
+    <div class="row" style="margin-top:36px; gap:40px;">
+      <div class="img-frame fade-up d2" style="flex:1.6; height:620px;">
+        <img src="0_research_and_planning/semana_1/notebooks/figuras/ego_networks_illicit.png" alt="Ego networks ilícitas" />
+      </div>
+      <div class="grow fade-up d3" style="flex:1;">
+        <p class="body body--lg">Patrones típicos observados alrededor de nodos ilícitos en el Elliptic Dataset:</p>
+        <hr class="rule" style="margin:24px 0;" />
+        <ul class="clean">
+          <li><b>Fan-out</b> — un nodo dispersa fondos a muchos</li>
+          <li><b>Fan-in</b> — muchos nodos consolidan en uno</li>
+          <li><b>Cadena</b> — secuencia larga de transacciones intermedias</li>
+          <li><b>Mixer cluster</b> — subgrafo denso con homofilia ilícita</li>
+        </ul>
+        <p class="small" style="margin-top:24px; font-style:italic; color:var(--ink-soft);">Estos patrones motivan la necesidad de capturar estructura a 2–3 saltos — receptive field que TAGCN ofrece nativamente.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">UTP · MISC<span class="dot"></span>Anexo A.15</span><span class="page">A.15</span></div>
+  </section>
+
+  <!-- ============================ CIERRE ============================ -->
+  <section class="slide" data-label="Cierre · Gracias">
+    <div style="position:absolute; top:100px; left:100px;">
+      <div class="eyebrow fade-up">Fin de la sustentación</div>
+    </div>
+
+    <div style="position:absolute; left:100px; right:100px; top:260px; bottom:240px; display:flex; flex-direction:column; justify-content:center;">
+      <h1 class="fade-up d1" style="font-family:var(--ff-serif); font-weight:600; font-size:180px; line-height:0.95; letter-spacing:-0.02em; margin:0; color:var(--ink);">Gracias.</h1>
+      <p class="h-sub fade-up d2" style="margin-top:40px;">Abrimos el espacio para preguntas y comentarios del honorable jurado.</p>
+    </div>
+
+    <div style="position:absolute; left:100px; right:100px; bottom:120px;">
+      <hr class="rule" style="margin-bottom:36px;" />
+      <div class="row fade-up d3" style="gap:80px;">
+        <div>
+          <div class="micro" style="color:var(--ink-mute); margin-bottom:10px;">REPOSITORIO</div>
+          <div class="body" style="font-size:28px; color:var(--ink); font-family:var(--ff-mono);">github.com/alejo14171/gnns_thesis</div>
+        </div>
+        <div style="margin-left:auto; text-align:right;">
+          <div class="micro" style="color:var(--ink-mute); margin-bottom:10px;">CONTACTO</div>
+          <div class="body" style="font-size:28px; color:var(--ink);">Alejandro Gómez · Juan Diego Garzón</div>
+          <div class="small" style="color:var(--ink-mute);">Dir. Ph.D. Cristian Rosero Arias · UTP</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</deck-stage>
+
+<!-- ===== Overlay de speaker notes (toggleable) ===== -->
+<div id="notes-overlay">
+  <h5>Speaker notes · slide <span id="notes-idx">1</span></h5>
+  <div id="notes-body"></div>
+</div>
+
+<!-- ===== Tweak panel ===== -->
+<div id="tweak-panel">
+  <h5>Tweaks</h5>
+  <label for="tw-palette">Paleta</label>
+  <select id="tw-palette">
+    <option value="default">Académica · papel (default)</option>
+    <option value="light">Claro · blanco</option>
+    <option value="dark">Oscuro · nocturno</option>
+  </select>
+  <label for="tw-font">Tipografía</label>
+  <select id="tw-font">
+    <option value="source">Source Serif + Source Sans</option>
+    <option value="ibm">IBM Plex Serif + Sans</option>
+    <option value="crimson">Crimson Pro + Inter</option>
+  </select>
+  <label class="notes-toggle">
+    <input type="checkbox" id="tw-notes" /> Mostrar speaker notes
+  </label>
+</div>
+
+<script src="deck-stage.js"></script>
+<script>
+(function(){
+  // ============== TWEAKS ==============
+  const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+    "palette": "default",
+    "font": "source",
+    "showNotes": false
+  }/*EDITMODE-END*/;
+
+  const state = Object.assign({}, TWEAK_DEFAULTS);
+  try {
+    const saved = JSON.parse(localStorage.getItem('thesis-tweaks') || '{}');
+    Object.assign(state, saved);
+  } catch(e){}
+
+  function applyTweaks(){
+    document.documentElement.setAttribute('data-palette', state.palette);
+    document.documentElement.setAttribute('data-font', state.font);
+    document.getElementById('notes-overlay').classList.toggle('visible', !!state.showNotes);
+    document.getElementById('tw-palette').value = state.palette;
+    document.getElementById('tw-font').value = state.font;
+    document.getElementById('tw-notes').checked = !!state.showNotes;
+  }
+
+  function saveTweaks(){
+    try { localStorage.setItem('thesis-tweaks', JSON.stringify(state)); } catch(e){}
+    try { window.parent.postMessage({type:'__edit_mode_set_keys', edits: state}, '*'); } catch(e){}
+  }
+
+  document.getElementById('tw-palette').addEventListener('change', e => { state.palette = e.target.value; applyTweaks(); saveTweaks(); });
+  document.getElementById('tw-font').addEventListener('change', e => { state.font = e.target.value; applyTweaks(); saveTweaks(); });
+  document.getElementById('tw-notes').addEventListener('change', e => { state.showNotes = e.target.checked; applyTweaks(); saveTweaks(); });
+
+  applyTweaks();
+
+  // ============== EDIT MODE PROTOCOL ==============
+  window.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.type === '__activate_edit_mode') {
+      document.getElementById('tweak-panel').classList.add('visible');
+    } else if (d.type === '__deactivate_edit_mode') {
+      document.getElementById('tweak-panel').classList.remove('visible');
+    }
+  });
+  try { window.parent.postMessage({type:'__edit_mode_available'}, '*'); } catch(e){}
+
+  // ============== NOTES SYNC ==============
+  const notes = JSON.parse(document.getElementById('speaker-notes').textContent);
+  const body = document.getElementById('notes-body');
+  const idx = document.getElementById('notes-idx');
+  function renderNote(i){
+    idx.textContent = (i+1);
+    const raw = notes[i] || '';
+    // Convert "— NAME —" markers to colored spans
+    const html = raw.replace(/— ([A-ZÁÉÍÓÚÑ ]+?) —/g, '<span class="who">$1</span>');
+    body.innerHTML = html;
+  }
+  window.addEventListener('message', (e) => {
+    if (e.data && typeof e.data.slideIndexChanged === 'number') renderNote(e.data.slideIndexChanged);
+  });
+  renderNote(0);
+})();
+</script>
+</body>
+</html>

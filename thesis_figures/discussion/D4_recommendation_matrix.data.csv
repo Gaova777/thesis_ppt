@@ -1,0 +1,7 @@
+use_case,GCN,GraphSAGE,GAT,TAGCN
+High accuracy (predictive quality),0,3,2,1
+High auditability (stable XAI),1,1,3,3
+Regulatory compliance (reproducible),1,2,3,2
+Fast inference,3,3,1,2
+Extreme imbalance (1:50+),0,2,3,3
+Balanced baseline (1:1 / 1:10),1,3,2,2

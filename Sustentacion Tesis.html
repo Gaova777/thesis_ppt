@@ -1,0 +1,1908 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Sustentación — Estabilidad XAI en GNNs · Elliptic Dataset</title>
+<meta name="viewport" content="width=1920" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;0,8..60,600;0,8..60,700;1,8..60,400&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css" />
+
+<style>
+/* Figure container styles for embedded SVGs */
+.fig-host{
+  width:100%; background:var(--bg); padding:8px 0;
+  display:flex; flex-direction:column; align-items:stretch;
+}
+.fig-host svg{width:100%; height:auto; display:block;}
+.fig-host .gridline{stroke:var(--rule); stroke-width:1; stroke-dasharray:3 4;}
+.fig-host .ax-line{stroke:var(--ink); stroke-width:1.5;}
+.fig-host .ax-label{font-family:var(--ff-sans); font-size:24px; fill:var(--ink-mute);}
+.fig-host .ax-title{font-family:var(--ff-sans); font-size:26px; fill:var(--ink-soft); font-weight:500;}
+.fig-host .cat-label{font-family:var(--ff-sans); font-size:28px; fill:var(--ink); font-weight:500;}
+.fig-host .val-label{font-family:var(--ff-mono); font-size:26px; fill:var(--ink); font-weight:600;}
+.fig-host .point{cursor:default;}
+
+.kpi-box{background:var(--bg-alt); padding:22px 28px; border-left:3px solid var(--accent);}
+.kpi-box .num{font-family:var(--ff-serif); font-weight:600; font-size:64px; color:var(--accent); line-height:1; font-feature-settings:"tnum" 1;}
+.kpi-box .lbl{font-size:22px; color:var(--ink-soft); margin-top:6px; letter-spacing:.04em; text-transform:uppercase; font-weight:600;}
+
+.badge{display:inline-block; padding:6px 14px; font-size:22px; font-family:var(--ff-sans); font-weight:600; letter-spacing:.06em; text-transform:uppercase;}
+.badge--accent{background:var(--accent); color:#fff;}
+.badge--support{background:var(--support); color:#fff;}
+.badge--ink{background:var(--ink); color:var(--bg);}
+.badge--outline{background:transparent; border:2px solid var(--ink); color:var(--ink);}
+
+.mini-chart{background:var(--bg-alt); padding:16px;}
+</style>
+
+<script type="application/json" id="speaker-notes">
+[
+"— ALEJANDRO — Muy buenos días honorables jurados. Mi nombre es Alejandro Gómez Huertas y junto con mi compañero Juan Diego Garzón Ovalle, bajo la dirección del doctor Cristian Rosero Arias, presentamos los resultados de nuestra tesis de maestría en la línea de inteligencia computacional. Hemos estudiado un problema muy concreto: cuando se aplican métodos de inteligencia artificial explicable sobre redes neuronales de grafos para detectar lavado de dinero en Bitcoin, las explicaciones se vuelven inestables bajo desbalance de clases. En los próximos quince minutos vamos a mostrarles la magnitud de esa inestabilidad, los hallazgos principales y la matriz de recomendación operativa que se desprende de nuestros resultados.",
+
+"— JUAN DIEGO — La agenda que seguiremos tiene seis bloques. Primero el contexto del problema de lavado. Segundo la pregunta de investigación y el marco conceptual. Tercero el diseño experimental. Cuarto los resultados, donde se concentrarán nuestros hallazgos principales. Quinto la discusión, incluyendo la comparación honesta con el estado del arte. Y sexto las conclusiones. Después de esa sección cerramos la presentación principal y quedamos abiertos a preguntas; dejamos anexos técnicos para profundizar en cualquier punto que deseen.",
+
+"— ALEJANDRO — El lavado de dinero es un problema de escala macroeconómica. Moviliza anualmente entre el dos y el cinco por ciento del producto interno bruto mundial, lo que equivale hasta a dos billones de dólares. Bitcoin y otras criptomonedas han sido vectores de crecimiento acelerado: las estimaciones de lavado cripto pasaron de 1.3 mil millones en 2020 a 23.8 mil millones en 2022. Frente a esa magnitud, las autoridades interceptan menos del uno por ciento. El sistema actual de alertas tiene una tasa de falsos positivos entre 95 y 98 por ciento, y el costo global de cumplimiento AML ya supera los 180 mil millones de dólares anuales.",
+
+"— JUAN DIEGO — Los sistemas tradicionales basados en reglas fallan porque tratan cada transacción como independiente. Las redes neuronales de grafos ofrecen un cambio de paradigma: modelan el flujo de fondos directamente. Cada transacción es un nodo, cada transferencia una arista dirigida, y cada nodo carga un vector de features propias y agregadas del vecindario. Las GNN aprenden patrones estructurales —fan-in, fan-out, cadenas de capas, mixers— que las reglas no pueden capturar. Es el estándar actual de la literatura AML en cripto.",
+
+"— ALEJANDRO — Pero en AML no basta con clasificar bien. Cada alerta debe justificarse ante auditores, cumplimiento, incluso cortes. Las GNN son cajas negras, y por eso se usa XAI: GNNExplainer, PGExplainer, GNNShap, entre otros. Aquí aparece la tensión que motiva nuestra tesis. No es suficiente que la predicción sea precisa: si la explicación que sustenta una alerta hoy cambia mañana con otra semilla, el sistema no es auditable. La estabilidad de la explicación es literalmente la condición de posibilidad para el despliegue regulado.",
+
+"— JUAN DIEGO — Nuestra pregunta central: cómo cuantificar la degradación de la estabilidad de los métodos XAI sobre GNNs aplicadas al Elliptic Dataset bajo desbalance, y qué combinación de arquitectura, explicador y técnica de balanceo la mitiga mejor. De ahí se derivan cuatro objetivos específicos: cuantificar la degradación con métricas formales, comparar robustez entre arquitecturas, evaluar el impacto de las técnicas de balanceo, y construir una matriz de recomendación operativa lista para despliegue.",
+
+"— ALEJANDRO — El marco conceptual se apoya en tres pilares. Primero las GNN, que operan bajo paso de mensajes: cada nodo recoge información de sus vecinos, la agrega, actualiza su estado; con k capas, incorpora contexto a k saltos. Segundo los métodos XAI: GNNExplainer optimiza máscaras por instancia, PGExplainer parametriza máscaras con una red auxiliar, GNNShap asigna valores de Shapley. Tercero las métricas: Jaccard sobre subgrafos, Spearman sobre rankings, y SHAP Concentration para parsimonia. Cada terna responde a una pregunta distinta sobre qué significa una explicación estable.",
+
+"— JUAN DIEGO — El Elliptic Bitcoin Dataset es nuestro benchmark. Tiene 203.769 transacciones, 234.355 aristas dirigidas, 166 features por nodo y 49 pasos temporales. Sólo el 9.8% del subconjunto etiquetado es ilícito; considerando nodos sin etiqueta, la clase ilícita representa menos del 2% del total. Este desbalance es real, no sintético. En la figura pueden ver la distribución temporal: hay ventanas donde la clase ilícita casi desaparece. Por eso construimos escenarios controlados 1:1, 1:10, 1:50 y 1:100 mediante submuestreo de la clase mayoritaria.",
+
+"— ALEJANDRO — Nuestro diseño experimental es un ANOVA factorial completo. Cuatro escenarios de desbalance, cuatro arquitecturas —GCN, GraphSAGE, GAT y TAGCN—, tres técnicas de balanceo —ninguna, class weighting y focal loss—, y tres métodos XAI. Eso da 144 configuraciones únicas; cada una con 20 réplicas estocásticas para construir distribuciones empíricas de estabilidad. El experimento corre en tres máquinas con GPU, orquestado con MLflow y consolidación atómica a CSV. Los tests estadísticos son ANOVA factorial, Tukey HSD y tamaño de efecto de Cohen.",
+
+"— JUAN DIEGO — Antes de entrar en resultados, una decisión metodológica clave: definimos un quality gate de validación para filtrar configuraciones inservibles antes de evaluar estabilidad. Los umbrales son F1 mayor a 0.30 y MCC mayor a 0.27. De las 48 combinaciones arquitectura-escenario-balanceo evaluadas, solamente 17 pasaron el filtro. Toda la discusión de estabilidad que sigue se hace sobre esas 17: no queremos medir la estabilidad de una explicación de un modelo que no clasifica bien, eso sería ruido sobre ruido.",
+
+"— ALEJANDRO — Primer bloque de resultados. La tasa de aprobación del filtro por escenario no es monótona: sube de 25% en 1:1 a 67% en 1:10, luego cae a 42% en 1:50 y a sólo 8% —una sola configuración— en 1:100. Por arquitectura, la jerarquía es clara: GraphSAGE aprueba 8 de 12 casos; GCN apenas 1 de 12. Esto ya es un resultado operativo: si no se sabe el régimen del desbalance, GraphSAGE es la apuesta más segura para conseguir una configuración entrenable.",
+
+"— JUAN DIEGO — El mapa de calor de F1 por arquitectura y escenario cristaliza ese mismo patrón. GraphSAGE lidera la columna 1:10 con F1 de 0.53; GAT alcanza 0.46; TAGCN 0.38; GCN apenas 0.31. En 1:100, sólo GraphSAGE mantiene F1 por encima del umbral. Es importante notar que nuestros valores son más bajos que los reportados por trabajos previos como EvolveGCN o el paper de Weber; la razón es metodológica: nosotros usamos validación estática y filtramos con quality gate estricto, no split temporal sobre test.",
+
+"— ALEJANDRO — Y ahora el hallazgo estrella. La curva de pico y colapso. Contra la intuición de que el desbalance degrada linealmente la estabilidad, observamos un pico en 1:50 con Spearman medio de 0.59, seguido de un colapso abrupto a 0.24 en 1:100. Existe una ventana óptima: el desbalance moderado-alto, lejos de degradar, puede mejorar la estabilidad explicativa de GNNExplainer. Sólo el régimen extremo colapsa. Este patrón matiza la narrativa habitual de degradación progresiva.",
+
+"— JUAN DIEGO — Segundo hallazgo estrella: la degeneración sistemática de PGExplainer. En las 17 configuraciones aprobadas, PGExplainer produce Spearman exactamente igual a cero. Literalmente cero. La red generadora paramétrica colapsa a una salida constante bajo las condiciones de entrenamiento de Elliptic con desbalance. No es un resultado negativo aislado; es un modo de falla generalizado. Esto tiene implicaciones directas: PGExplainer, pese a su popularidad en la literatura, es inviable para despliegue auditable en este tipo de problema. GNNExplainer sigue siendo el único explicador operativamente estable.",
+
+"— ALEJANDRO — El tercer hallazgo es la disociación precisión-estabilidad. Cuando graficamos F1 medio contra Spearman medio por arquitectura, ninguna ocupa simultáneamente ambos cuartiles altos. GraphSAGE lidera precisión pero cae en estabilidad. GAT y TAGCN ofrecen la estabilidad más alta pero al precio de menor F1 medio. Esta disociación es crítica: elegir arquitectura no es cuestión de un único óptimo; depende del criterio —despliegue regulado, desempeño bruto, velocidad de inferencia— y debe hacerse con información de ambos ejes.",
+
+"— JUAN DIEGO — El top-10 de configuraciones más estables confirma el patrón. Las dos primeras combinan receptive field amplio, TAGCN-K3 o GAT multicabeza, con focal loss y desbalance 1:50. Spearman de 0.79 en ambas. GraphSAGE aparece múltiples veces en el top-10, pero siempre con Spearman sustancialmente más bajo. Esto respalda la lectura del cuadrante: la estabilidad máxima se alcanza con arquitecturas de agregación extendida en régimen moderado-alto, no en régimen balanceado ni con arquitecturas de un salto.",
+
+"— ALEJANDRO — Discusión: comparación con el estado del arte. Trabajos previos reportan F1 entre 0.79 y 0.89 sobre Elliptic. Nuestros valores máximos están en 0.53. La diferencia es metodológica, no de implementación: ellos usan split temporal sobre test —que en Elliptic favorece a los modelos porque los nodos futuros son más etiquetados— mientras nosotros usamos validación estática y aplicamos quality gate. Nuestra comparación honesta es orientativa; la contribución de esta tesis no es superar F1, es caracterizar estabilidad explicativa, que no es el objetivo de ningún trabajo comparado.",
+
+"— JUAN DIEGO — Matriz de recomendación operativa. Seis casos de uso contra cuatro arquitecturas, con puntaje de cero a tres. Para alta precisión predictiva, GraphSAGE lidera. Para alta auditabilidad XAI, GAT y TAGCN empatan en tres. Para cumplimiento regulatorio, GAT es la opción más versátil con score quince sumando todas las filas. Para inferencia rápida, GCN y GraphSAGE son preferibles. Para desbalance extremo mayor que 1:50, GAT y TAGCN son las únicas viables. No hay una respuesta única; hay una tabla de decisión.",
+
+"— ALEJANDRO — Una nota sobre recursos computacionales que vale la pena discutir. La fase de explicación XAI dominó el costo total en la máquina más modesta —una RTX 3050— con 24 horas de explicación frente a 5.4 horas de entrenamiento. En hardware superior la proporción se invierte. Para un regulador o institución financiera, esto implica que la elección del método XAI afecta el costo de despliegue tanto como la elección del modelo. Dato relevante para el TCO del sistema.",
+
+"— JUAN DIEGO — Conclusiones principales. Primera: la relación entre desbalance y estabilidad explicativa no es monótona; existe una ventana óptima en 1:50 y un colapso en 1:100. Segunda: PGExplainer se degenera sistemáticamente en este setting; GNNExplainer es el único operativamente viable. Tercera: la precisión predictiva y la estabilidad explicativa son dimensiones disociadas; ninguna arquitectura optimiza ambas. Cuarta: la matriz de recomendación provee criterio operativo según caso de uso, no una única arquitectura dominante.",
+
+"— ALEJANDRO — Nuestros aportes: aporte académico, evidencia empírica rigurosa sobre un problema identificado como abierto en la literatura de XAI en grafos; la degeneración de PGExplainer en particular no había sido reportada con este nivel de sistematicidad. Aporte práctico, una matriz de recomendación lista para uso en instituciones financieras y reguladores que consideren desplegar GNNs auditables. Trabajo futuro: extensión a otros datasets AML, evaluación de explicadores contrafactuales, análisis de drift temporal y la interacción con técnicas avanzadas como GraphSMOTE.",
+
+"— JUAN DIEGO — Con esto cerramos la presentación principal. Honorables jurados, quedamos atentos a sus preguntas. Hemos preparado un conjunto extenso de anexos que profundizan los fundamentos técnicos —desde el perceptrón hasta Cohen y Fidelity— y los detalles experimentales que pudieran interesarles. Muchísimas gracias por su atención.",
+
+"— Anexo · A.1–A.4 — <span style='color:#A3C265;'>ALEJANDRO</span> — Recorro los cuatro fundamentos. A.1: partimos del perceptrón multicapa, el bloque básico del deep learning; toma un vector de features, aplica transformaciones lineales con no linealidades, y aproxima cualquier función continua — pero ignora las relaciones entre instancias. A.2: en un grafo dirigido atribuido los nodos cargan features y las aristas codifican dirección; en Elliptic cada nodo es una transacción con 166 features y cada arista indica que los fondos alimentaron a la siguiente. A.3: el paso de mensajes se formaliza en tres fases — mensaje desde cada vecino, agregación invariante al orden, y actualización combinando con la representación previa; repetir k veces expande el receptive field a k saltos. A.4: las cuatro arquitecturas evaluadas tienen perfiles distintos — GCN promedia simétricamente normalizado, GraphSAGE muestrea vecinos y concatena, GAT usa atención multi-cabeza, y TAGCN aplica filtros polinomiales de orden K.",
+
+"— Anexo · A.5–A.7 — <span style='color:#E58A6E;'>JUAN DIEGO</span> — Los tres explicadores evaluados. A.5: GNNExplainer dado un nodo optimiza una máscara continua sobre aristas y features que maximice la información mutua con la predicción original, regularizada para sparsity; se optimiza vía descenso de gradiente, una máscara por instancia, y su fuente de inestabilidad es la inicialización aleatoria. A.6: PGExplainer parametriza la generación de máscaras con una red neuronal que toma embeddings de aristas y produce probabilidades de pertenencia al subgrafo explicativo; se entrena colectivamente y en teoría es más consistente entre nodos — pero en nuestros experimentos colapsa a salida constante. A.7: GNNShap asigna a cada feature un valor de Shapley calculado vía muestreo Monte Carlo, satisface eficiencia, simetría y monotonicidad axiomáticamente; su varianza proviene del muestreo limitado.",
+
+"— Anexo · A.8–A.10 — <span style='color:#A3C265;'>ALEJANDRO</span> — Las tres métricas de estabilidad. A.8: Jaccard es intersección sobre unión aplicada a conjuntos de aristas explicativas entre dos ejecuciones — mide estabilidad estructural directa; en nuestros resultados Jaccard es igual a uno en todas las configuraciones aprobadas, y eso no es señal de estabilidad perfecta sino un artefacto del explicador que detallo luego. A.9: Spearman evalúa acuerdo de rankings, no de valores — ideal para comparar órdenes de importancia de features entre ejecuciones, robusta a transformaciones monótonas; es el indicador más informativo porque captura los cambios en los pesos ordenados. A.10: SHAP Concentration propuesta por He y colaboradores es el porcentaje de atribución total acumulado en el top-k de features — alta concentración implica parsimonia y por tanto auditabilidad; en nuestros experimentos TAGCN y GAT concentran, GCN dispersa.",
+
+"— Anexo · A.11–A.14 — <span style='color:#E58A6E;'>JUAN DIEGO</span> — Cuatro fundamentos metodológicos. A.11: class weighting pondera estáticamente por clase, focal loss pondera dinámicamente por dificultad de cada muestra enfocándose en ejemplos difíciles — class weighting aprueba 44% de configuraciones, focal loss 38%, y ninguna por sí sola resuelve el desbalance extremo. A.12: oversmoothing es cuando al apilar capas GNN las representaciones convergen y se vuelven indistinguibles; motiva arquitecturas como TAGCN que expanden receptive field con filtros polinomiales en lugar de apilar capas. A.13: homofilia es la probabilidad de que dos nodos conectados compartan etiqueta — en Elliptic la homofilia ilícita es moderada porque los ilícitos se mezclan con lícitos para ocultarse, lo que justifica GAT (ponderación) y TAGCN (alcance). A.14: Fidelity+ mide cuánto cae la predicción al eliminar el subgrafo explicativo, Fidelity- mide si se preserva cuando solo se deja el subgrafo — estabilidad mide reproducibilidad, fidelity mide veracidad, y un despliegue regulado exige ambas.",
+
+"— Anexo · A.15–A.16 — <span style='color:#A3C265;'>ALEJANDRO</span> — Los dos resultados más importantes de entender. A.15: por qué Jaccard igual a uno es artefacto. GNNExplainer selecciona como subgrafo explicativo un subconjunto del subgrafo de cómputo, que está determinado por la topología del grafo y es independiente de la semilla; por eso entre réplicas las aristas seleccionadas coinciden. La variabilidad está en los pesos continuos de la máscara, que se aprenden por gradiente con inicialización aleatoria. Spearman ordena por peso y sí captura inestabilidad; Jaccard solo mira pertenencia y no. A.16: por qué PGExplainer colapsa a cero. La red entrena colectivamente sobre múltiples instancias; bajo desbalance extremo minimizar la pérdida promedio con pocos positivos es trivial produciendo el mismo vector de probabilidades constante para todas las muestras. Es un modo de falla del entrenamiento colectivo que no ocurre en GNNExplainer porque optimiza por instancia.",
+
+"— Anexo · A.17–A.18 — <span style='color:#E58A6E;'>JUAN DIEGO</span> — Rigor estadístico del estudio. A.17: Kruskal-Wallis sobre la distribución de Spearman por escenario arrojó H igual a 4.31 con p igual a 0.23 — no hay evidencia significativa al nivel alfa 0.05, limitado por el tamaño muestral en 1:100; sin embargo el d de Cohen entre 1:1 y 1:50 es -0.915, tamaño de efecto grande. El patrón cualitativo es robusto; la significancia formal requeriría más réplicas en el régimen extremo. A.18: el quality gate usa umbrales F1 mayor a 0.30 y MCC mayor a 0.27 — F1 por debajo indica clasificador que no supera el azar, MCC por debajo indica correlación inservible. 17 de 48 configuraciones pasaron; sin ese filtro las estadísticas de estabilidad se contaminarían con clasificadores inservibles, y por eso todo el análisis lo aplica.",
+
+"— Anexo · A.19–A.20 — <span style='color:#A3C265;'>ALEJANDRO</span> — Contexto operativo y benchmarking. A.19: costos computacionales por máquina. En la RTX 4060 tuvimos 3.12 horas de entrenamiento y 1.53 horas de explicación; en la RTX 3050 se invirtió — 5.40 horas de entrenamiento y 24 horas de explicación. La explicación escala peor con hardware modesto; para instituciones con recursos limitados el coste marginal de producir una explicación por predicción puede dominar el TCO. A.20: comparación SOTA honesta. Pareja 2020 con EvolveGCN reporta 0.89 en test con split temporal; arXiv 2025 con GraphSAGE reporta 0.85 en validación con warm start; Weber 2019 con Random Forest baseline 0.79. Nosotros con GraphSAGE máximo 0.53 en validación con quality gate — no son directamente comparables por protocolo. La contribución de esta tesis es caracterizar estabilidad explicativa, no superar F1.",
+
+"— Anexo · A.21 — <span style='color:#E58A6E;'>JUAN DIEGO</span> — Ego-networks ilícitas del Elliptic. Los patrones observados sobre las ego-networks de los nodos ilícitos son cuatro: fan-out donde un nodo dispersa fondos a muchos, fan-in donde muchos nodos consolidan en uno, cadena larga de transacciones intermedias, y mixer cluster con homofilia ilícita densa. Estos patrones justifican la necesidad de capturar estructura a dos o tres saltos, que es exactamente el receptive field que TAGCN ofrece nativamente mediante sus filtros polinomiales y que GAT aproxima con atención multi-cabeza. Por eso en la matriz de recomendación operativa estas dos arquitecturas lideran los criterios de auditabilidad y cumplimiento regulatorio. Con esto cerramos los anexos; quedamos atentos a sus preguntas, honorables jurados."
+]
+</script>
+</head>
+<body>
+
+<deck-stage width="1920" height="1080">
+
+<!-- ═══════════════ SLIDE 01 — PORTADA ═══════════════ -->
+<section data-screen-label="01 Portada">
+  <div class="slide" style="display:grid; grid-template-rows:auto 1fr auto; height:100%;">
+    <!-- top line: institución -->
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; font-weight:600; color:var(--ink);">Universidad Tecnológica de Pereira</div>
+        <div class="micro" style="color:var(--ink-mute);">Facultad de Ingenierías · Maestría en Ingeniería Eléctrica</div>
+        <div class="micro" style="color:var(--ink-mute);">Línea de Inteligencia Computacional</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="micro" style="color:var(--ink-mute); letter-spacing:.22em; text-transform:uppercase; font-weight:600;">Sustentación · 2026</div>
+      </div>
+    </div>
+
+    <!-- centro: title -->
+    <div style="display:flex; flex-direction:column; justify-content:center; padding:40px 0;">
+      <div class="eyebrow" style="margin-bottom:44px;">Tesis de Maestría</div>
+      <h1 class="h-title fade-up d1" style="font-size:92px; line-height:1.02; max-width:1600px;">
+        Estabilidad de la explicabilidad en <span style="font-style:italic;">Graph Neural Networks</span> bajo desbalance de clases
+      </h1>
+      <p class="h-sub fade-up d2" style="margin-top:32px; max-width:1500px; font-size:42px;">
+        Evidencia empírica sobre el Elliptic Bitcoin Dataset y matriz de recomendación operativa para AML auditable
+      </p>
+    </div>
+
+    <!-- abajo: autores + director -->
+    <div style="display:grid; grid-template-columns:1fr 1fr auto; gap:64px; align-items:end;">
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px;">Autores</div>
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:36px; color:var(--ink); line-height:1.2;">
+          Alejandro Gómez Huertas<br/>Juan Diego Garzón Ovalle
+        </div>
+      </div>
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:10px;">Director</div>
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:36px; color:var(--ink); line-height:1.2;">
+          Dr. Cristian Rosero Arias
+        </div>
+      </div>
+      <div style="text-align:right; font-family:var(--ff-mono); font-size:22px; color:var(--ink-mute); letter-spacing:.08em;">
+        &nbsp;
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 02 — AGENDA ═══════════════ -->
+<section data-screen-label="02 Agenda">
+  <div class="slide">
+    <div class="eyebrow">Agenda</div>
+    <h2 class="h-head" style="margin-bottom:56px;">Ruta de la sustentación</h2>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:60px 100px;">
+      <div class="fade-up d1" style="display:flex; gap:32px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:72px; color:var(--accent); line-height:0.9; min-width:100px; font-feature-settings:'tnum' 1;">I</div>
+        <div>
+          <div style="font-family:var(--ff-serif); font-size:42px; font-weight:600; color:var(--ink); line-height:1.15;">Contexto y problema</div>
+          <div class="small" style="margin-top:8px;">AML en cripto · por qué GNNs · tensión regulatoria</div>
+        </div>
+      </div>
+      <div class="fade-up d2" style="display:flex; gap:32px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:72px; color:var(--accent); line-height:0.9; min-width:100px;">II</div>
+        <div>
+          <div style="font-family:var(--ff-serif); font-size:42px; font-weight:600; color:var(--ink); line-height:1.15;">Pregunta y marco</div>
+          <div class="small" style="margin-top:8px;">Objetivos · GNNs · XAI · métricas de estabilidad</div>
+        </div>
+      </div>
+      <div class="fade-up d3" style="display:flex; gap:32px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:72px; color:var(--accent); line-height:0.9; min-width:100px;">III</div>
+        <div>
+          <div style="font-family:var(--ff-serif); font-size:42px; font-weight:600; color:var(--ink); line-height:1.15;">Método</div>
+          <div class="small" style="margin-top:8px;">Elliptic · diseño factorial 4×4×3×3 · quality gate</div>
+        </div>
+      </div>
+      <div class="fade-up d4" style="display:flex; gap:32px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:72px; color:var(--accent); line-height:0.9; min-width:100px;">IV</div>
+        <div>
+          <div style="font-family:var(--ff-serif); font-size:42px; font-weight:600; color:var(--ink); line-height:1.15;">Resultados</div>
+          <div class="small" style="margin-top:8px;">Pico y colapso · PGExplainer degenera · cuadrantes</div>
+        </div>
+      </div>
+      <div class="fade-up d5" style="display:flex; gap:32px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:72px; color:var(--accent); line-height:0.9; min-width:100px;">V</div>
+        <div>
+          <div style="font-family:var(--ff-serif); font-size:42px; font-weight:600; color:var(--ink); line-height:1.15;">Discusión</div>
+          <div class="small" style="margin-top:8px;">SOTA · matriz de recomendación · costos</div>
+        </div>
+      </div>
+      <div class="fade-up d6" style="display:flex; gap:32px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:72px; color:var(--accent); line-height:0.9; min-width:100px;">VI</div>
+        <div>
+          <div style="font-family:var(--ff-serif); font-size:42px; font-weight:600; color:var(--ink); line-height:1.15;">Conclusiones</div>
+          <div class="small" style="margin-top:8px;">Aportes · trabajo futuro · preguntas</div>
+        </div>
+      </div>
+    </div>
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">02 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 03 — AML EN CRIPTO: CIFRAS ═══════════════ -->
+<section data-screen-label="03 AML Cripto">
+  <div class="slide">
+    <div class="eyebrow">I · Contexto</div>
+    <h2 class="h-head" style="max-width:1500px;">AML en cripto: escala macro, intercepción mínima</h2>
+    <p class="h-sub" style="max-width:1500px;">El sistema actual vigila un flujo multibillonario con herramientas que generan más ruido que señal.</p>
+
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:28px; margin-top:36px;">
+      <div class="kpi-box fade-up d1">
+        <div class="num">2–5%</div>
+        <div class="lbl" style="font-size:24px;">PIB mundial lavado</div>
+        <div class="small" style="margin-top:14px; line-height:1.35;">Hasta US$ 2 billones/año <span style="color:var(--ink-mute);">(UNODC)</span></div>
+      </div>
+      <div class="kpi-box fade-up d2">
+        <div class="num">×18</div>
+        <div class="lbl" style="font-size:24px;">Lavado cripto 2020→22</div>
+        <div class="small" style="margin-top:14px; line-height:1.35;">US$ 1.3B → 23.8B <span style="color:var(--ink-mute);">(Chainalysis)</span></div>
+      </div>
+      <div class="kpi-box fade-up d3">
+        <div class="num">&lt;1%</div>
+        <div class="lbl" style="font-size:24px;">Tasa de intercepción</div>
+        <div class="small" style="margin-top:14px; line-height:1.35;">Flujos ilícitos recuperados <span style="color:var(--ink-mute);">(UNODC)</span></div>
+      </div>
+      <div class="kpi-box fade-up d4">
+        <div class="num">95–98%</div>
+        <div class="lbl" style="font-size:24px;">Falsos positivos AML</div>
+        <div class="small" style="margin-top:14px; line-height:1.35;">En sistemas basados en reglas</div>
+      </div>
+    </div>
+
+    <div style="margin-top:52px; border-top:1px solid var(--rule); padding-top:28px; display:grid; grid-template-columns:auto 1fr auto; gap:48px; align-items:center;">
+      <div style="font-family:var(--ff-serif); font-weight:600; font-size:56px; color:var(--ink); line-height:1;">US$ 180 B</div>
+      <div class="body">Costo anual global de cumplimiento AML — creciendo al 12% anual. Cada falso positivo cuesta entre US$ 30 y US$ 50 en investigación manual.</div>
+      <div class="badge badge--accent">Problema de eficiencia</div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">03 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 04 — DE REGLAS A GRAFOS ═══════════════ -->
+<section data-screen-label="04 Reglas vs Grafos">
+  <div class="slide">
+    <div class="eyebrow">I · Contexto</div>
+    <h2 class="h-head" style="max-width:1600px;">De reglas aisladas a estructura relacional</h2>
+    <p class="h-sub" style="max-width:1500px;">Las GNN cambian la unidad de análisis: de transacción individual a subgrafo de flujo.</p>
+
+    <div style="display:grid; grid-template-columns:1fr auto 1fr; gap:40px; margin-top:24px; align-items:stretch;">
+
+      <!-- columna reglas -->
+      <div style="background:var(--bg-alt); padding:28px 32px; border:1px solid var(--rule);">
+        <div class="badge badge--outline" style="margin-bottom:16px;">Sistemas basados en reglas</div>
+        <svg viewBox="0 0 600 260" style="width:100%; height:241px; margin:8px 0;">
+          <defs>
+            <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8B867B"/></marker>
+          </defs>
+          <!-- transacciones aisladas -->
+          <g>
+            <rect x="40" y="80" width="90" height="90" fill="#EEE8DE" stroke="#8B867B" stroke-width="1.5"/>
+            <text x="85" y="130" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#2C2A27">tx₁</text>
+            <rect x="180" y="80" width="90" height="90" fill="#EEE8DE" stroke="#8B867B" stroke-width="1.5"/>
+            <text x="225" y="130" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#2C2A27">tx₂</text>
+            <rect x="320" y="80" width="90" height="90" fill="#EEE8DE" stroke="#8B867B" stroke-width="1.5"/>
+            <text x="365" y="130" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#2C2A27">tx₃</text>
+            <rect x="460" y="80" width="90" height="90" fill="#EEE8DE" stroke="#8B867B" stroke-width="1.5"/>
+            <text x="505" y="130" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#2C2A27">tx₄</text>
+          </g>
+          <!-- flags independientes -->
+          <text x="85" y="210" text-anchor="middle" font-family="Source Sans 3" font-size="18" fill="#B84A2E" font-weight="600">&gt; umbral ✕</text>
+          <text x="225" y="210" text-anchor="middle" font-family="Source Sans 3" font-size="18" fill="#8B867B">ok ✓</text>
+          <text x="365" y="210" text-anchor="middle" font-family="Source Sans 3" font-size="18" fill="#8B867B">ok ✓</text>
+          <text x="505" y="210" text-anchor="middle" font-family="Source Sans 3" font-size="18" fill="#8B867B">ok ✓</text>
+          <text x="300" y="50" text-anchor="middle" font-family="Source Sans 3" font-size="20" fill="#5A564F" font-style="italic">cada tx evaluada independientemente</text>
+        </svg>
+        <ul class="clean" style="margin-top:10px; font-size:25px;">
+          <li style="font-size:25px;">No captura patrones de estructura: fan-in, fan-out, cadenas, mixers</li>
+          <li style="font-size:25px;">Umbrales estáticos generan ruido masivo</li>
+          <li style="font-size:25px;">Auditables pero <b>operativamente inviables</b></li>
+        </ul>
+      </div>
+
+      <div style="display:flex; align-items:center; justify-content:center; font-family:var(--ff-serif); font-size:56px; color:var(--accent); line-height:1;">→</div>
+
+      <!-- columna grafos -->
+      <div style="background:var(--dark); padding:28px 32px; color:#ECE6D8;">
+        <div class="badge badge--support" style="margin-bottom:16px;">Graph Neural Networks</div>
+        <svg viewBox="0 0 600 260" style="width:100%; height:240px; margin:8px 0;">
+          <defs>
+            <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#A3C265"/></marker>
+          </defs>
+          <!-- aristas -->
+          <g stroke="#A3C265" stroke-width="2.2" fill="none" marker-end="url(#arrG)">
+            <line x1="100" y1="130" x2="220" y2="80"/>
+            <line x1="100" y1="130" x2="220" y2="180"/>
+            <line x1="240" y1="80" x2="360" y2="80"/>
+            <line x1="240" y1="180" x2="360" y2="140"/>
+            <line x1="380" y1="80" x2="500" y2="130"/>
+            <line x1="380" y1="140" x2="500" y2="130"/>
+          </g>
+          <!-- nodos -->
+          <g>
+            <circle cx="90" cy="130" r="26" fill="#E58A6E" stroke="#F4B59A" stroke-width="2"/>
+            <text x="90" y="136" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#12110F" font-weight="600">tx₁</text>
+            <circle cx="230" cy="80" r="22" fill="#3A3631" stroke="#A3C265" stroke-width="2"/>
+            <text x="230" y="86" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="#ECE6D8">tx₂</text>
+            <circle cx="230" cy="180" r="22" fill="#3A3631" stroke="#A3C265" stroke-width="2"/>
+            <text x="230" y="186" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="#ECE6D8">tx₃</text>
+            <circle cx="370" cy="80" r="22" fill="#3A3631" stroke="#A3C265" stroke-width="2"/>
+            <text x="370" y="86" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="#ECE6D8">tx₄</text>
+            <circle cx="370" cy="140" r="22" fill="#3A3631" stroke="#A3C265" stroke-width="2"/>
+            <text x="370" y="146" text-anchor="middle" font-family="JetBrains Mono" font-size="12" fill="#ECE6D8">tx₅</text>
+            <circle cx="510" cy="130" r="26" fill="#E58A6E" stroke="#F4B59A" stroke-width="2"/>
+            <text x="510" y="136" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#12110F" font-weight="600">tx₆</text>
+          </g>
+          <text x="300" y="230" text-anchor="middle" font-family="Source Sans 3" font-size="20" fill="#B8B2A4" font-style="italic">el subgrafo entero informa la decisión</text>
+        </svg>
+        <ul class="clean" style="margin-top:10px; color:#ECE6D8; font-size:22px;">
+          <li style="color:#ECE6D8; border-bottom-color:#3A342D; font-size:25px;">Message passing: cada nodo agrega información de su vecindario a k saltos</li>
+          <li style="color:#ECE6D8; border-bottom-color:#3A342D; font-size:2px;">Aprende patrones estructurales que las reglas no expresan</li>
+          <li style="color:#ECE6D8; border-bottom-color:#3A342D; font-size:25px;"><b>Estándar de la literatura AML en cripto</b> (2019–2025)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">04 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 05 — TENSIÓN XAI/REGULACIÓN ═══════════════ -->
+<section data-screen-label="05 Tension XAI">
+  <div class="slide">
+    <div class="eyebrow">II · Pregunta</div>
+    <h2 class="h-head" style="max-width:1550px;">La tensión que motiva esta tesis</h2>
+    <p class="h-sub" style="max-width:1500px;">Una explicación que cambia con cada semilla no puede sustentar una alerta ante un auditor.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:64px; margin-top:48px;">
+      <div class="fade-up d1">
+        <div class="badge badge--ink" style="margin-bottom:20px;">Lo que exige el regulador</div>
+        <ul class="clean">
+          <li style="font-size:25px;"><b>Trazabilidad:</b> toda decisión debe justificarse ex-post</li>
+          <li style="font-size:25px;"><b>Reproducibilidad:</b> misma entrada → misma explicación</li>
+          <li style="font-size:25px;"><b>Parsimonia:</b> pocos factores dominantes, no 166 variables</li>
+          <li style="font-size:25px;"><b>Estabilidad:</b> la explicación no puede depender del azar</li>
+        </ul>
+      </div>
+      <div class="fade-up d2">
+        <div class="badge badge--accent" style="margin-bottom:20px;">Lo que ofrece XAI sobre GNNs</div>
+        <ul class="clean">
+          <li style="font-size:25px;"><b>GNNExplainer:</b> máscara óptima por instancia (aleatoria)</li>
+          <li style="font-size:25px;"><b>PGExplainer:</b> red generadora de máscaras (colectiva)</li>
+          <li style="font-size:25px;"><b>GNNShap:</b> valores de Shapley por muestreo Monte Carlo</li>
+          <li style="color:var(--accent);"><b>Problema:</b> ¿qué tan estables son bajo desbalance real?</li>
+        </ul>
+      </div>
+    </div>
+
+    <div style="margin-top:56px; padding:32px 44px; background:var(--hl); border-left:4px solid var(--accent);">
+      <div class="pullquote" style="font-size:44px; line-height:1.25; margin:-35px;">
+        La estabilidad de la explicación es la condición de posibilidad para el despliegue regulado de GNNs en AML.
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">05 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 06 — PREGUNTA + OBJETIVOS ═══════════════ -->
+<section data-screen-label="06 Pregunta y Objetivos">
+  <div class="slide">
+    <div class="eyebrow">II · Pregunta</div>
+    <h2 class="h-head" style="max-width:1600px;">Pregunta de investigación</h2>
+
+    <div style="background:var(--bg-alt); padding:44px 52px; margin-top:12px; border-left:4px solid var(--accent);">
+      <p style="font-family:var(--ff-serif); font-size:48px; line-height:1.3; color:var(--ink); margin:0; font-weight:400; text-wrap:balance;">
+        ¿Cómo cuantificar la <b style="color:var(--accent);">degradación de la estabilidad</b> de métodos XAI sobre GNNs aplicadas al Elliptic Dataset bajo desbalance, y qué combinación de <b>arquitectura, explicador y balanceo</b> la mitiga mejor?
+      </p>
+    </div>
+
+    <h3 style="font-family:var(--ff-serif); font-size:38px; font-weight:600; color:var(--ink); margin:52px 0 24px;">Objetivos específicos</h3>
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:28px;">
+      <div class="card fade-up d1">
+        <div style="font-family:var(--ff-mono); font-size:24px; color:var(--accent); letter-spacing:.08em; margin-bottom:8px;">OE-01</div>
+        <h4>Cuantificar</h4>
+        <p>la degradación con Jaccard, Spearman y SHAP Concentration bajo cuatro escenarios.</p>
+      </div>
+      <div class="card fade-up d2">
+        <div style="font-family:var(--ff-mono); font-size:24px; color:var(--accent); letter-spacing:.08em; margin-bottom:8px;">OE-02</div>
+        <h4>Comparar</h4>
+        <p>robustez entre GCN, GraphSAGE, GAT y TAGCN con ANOVA factorial.</p>
+      </div>
+      <div class="card fade-up d3">
+        <div style="font-family:var(--ff-mono); font-size:24px; color:var(--accent); letter-spacing:.08em; margin-bottom:8px;">OE-03</div>
+        <h4>Evaluar</h4>
+        <p>impacto de class weighting y focal loss sobre estabilidad explicativa.</p>
+      </div>
+      <div class="card fade-up d4">
+        <div style="font-family:var(--ff-mono); font-size:24px; color:var(--accent); letter-spacing:.08em; margin-bottom:8px;">OE-04</div>
+        <h4>Construir</h4>
+        <p>matriz de recomendación operativa por caso de uso para despliegue AML.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">06 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 07 — MARCO CONCEPTUAL ═══════════════ -->
+<section data-screen-label="07 Marco conceptual">
+  <div class="slide">
+    <div class="eyebrow">II · Marco</div>
+    <h2 class="h-head" style="max-width:1600px;">Tres pilares del marco conceptual</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:36px; margin-top:44px;">
+      <!-- GNN -->
+      <div style="background:var(--bg-alt); padding:36px; border:1px solid var(--rule);">
+        <div class="badge badge--ink" style="margin-bottom:18px;">1 · Arquitecturas</div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; margin:0 0 16px; color:var(--ink);">Message Passing</h4>
+        <svg viewBox="0 0 420 200" style="width:100%; height:160px;">
+          <g stroke="#5A564F" stroke-width="1.5" fill="none">
+            <line x1="210" y1="100" x2="90" y2="50"/>
+            <line x1="210" y1="100" x2="90" y2="150"/>
+            <line x1="210" y1="100" x2="330" y2="60"/>
+            <line x1="210" y1="100" x2="330" y2="140"/>
+          </g>
+          <circle cx="90" cy="50" r="18" fill="#D4CDBF"/><text x="90" y="56" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#2C2A27">v₁</text>
+          <circle cx="90" cy="150" r="18" fill="#D4CDBF"/><text x="90" y="156" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#2C2A27">v₂</text>
+          <circle cx="330" cy="60" r="18" fill="#D4CDBF"/><text x="330" y="66" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#2C2A27">v₃</text>
+          <circle cx="330" cy="140" r="18" fill="#D4CDBF"/><text x="330" y="146" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#2C2A27">v₄</text>
+          <circle cx="210" cy="100" r="26" fill="#B84A2E"/><text x="210" y="107" text-anchor="middle" font-family="JetBrains Mono" font-size="15" fill="#FFF" font-weight="600">u</text>
+        </svg>
+        <p style="font-family:var(--ff-mono); font-size:22px; color:var(--ink); margin-top:16px; line-height:1.5;">h<tspan style="font-size:18px;">u</tspan><sup>(k+1)</sup> = UPD(h<sub>u</sub><sup>(k)</sup>, AGG{h<sub>v</sub><sup>(k)</sup>})</p>
+        <p class="small" style="margin-top:14px;">GCN · GraphSAGE · GAT · TAGCN — 4 arquitecturas evaluadas</p>
+      </div>
+
+      <!-- XAI -->
+      <div style="background:var(--bg-alt); padding:36px; border:1px solid var(--rule);">
+        <div class="badge badge--accent" style="margin-bottom:18px;">2 · Explicadores</div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; margin:0 0 16px; color:var(--ink);">Métodos XAI</h4>
+        <ul class="clean" style="margin-top:8px;">
+          <li style="padding:14px 0 14px 36px; font-size:26px;"><b>GNNExplainer</b><br/><span class="small" style="color:var(--ink-mute);">Máscara por instancia, optimización vía gradiente</span></li>
+          <li style="padding:14px 0 14px 36px; font-size:26px;"><b>PGExplainer</b><br/><span class="small" style="color:var(--ink-mute);">Red generadora paramétrica, entrenamiento colectivo</span></li>
+          <li style="padding:14px 0 14px 36px; font-size:26px;"><b>GNNShap</b><br/><span class="small" style="color:var(--ink-mute);">Valores de Shapley, aproximación Monte Carlo</span></li>
+        </ul>
+      </div>
+
+      <!-- Metrics -->
+      <div style="background:var(--bg-alt); padding:36px; border:1px solid var(--rule);">
+        <div class="badge badge--support" style="margin-bottom:18px;">3 · Estabilidad</div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; margin:0 0 16px; color:var(--ink);">Métricas</h4>
+        <ul class="clean" style="margin-top:8px;">
+          <li style="padding:14px 0 14px 36px; font-size:26px;"><b>Jaccard</b><br/><span class="small" style="color:var(--ink-mute);">|A∩B| / |A∪B| sobre subgrafos</span></li>
+          <li style="padding:14px 0 14px 36px; font-size:26px;"><b>Spearman ρ</b><br/><span class="small" style="color:var(--ink-mute);">Correlación de rankings</span></li>
+          <li style="padding:14px 0 14px 36px; font-size:26px;"><b>SHAP Concentration</b><br/><span class="small" style="color:var(--ink-mute);">Parsimonia: atribución en top-k</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">07 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 08 — ELLIPTIC DATASET ═══════════════ -->
+<section data-screen-label="08 Elliptic Dataset">
+  <div class="slide">
+    <div class="eyebrow">III · Método</div>
+    <h2 class="h-head" style="max-width:1600px;">Elliptic Bitcoin Dataset</h2>
+    <p class="h-sub">Benchmark público de referencia en AML sobre cripto — desbalance natural ~9.8%</p>
+
+    <div style="display:grid; grid-template-columns:1.1fr 1fr; gap:64px; margin-top:36px;">
+      <div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-bottom:32px;">
+          <div class="metric"><div class="num num--ink">203 769</div><div class="lbl">transacciones (nodos)</div></div>
+          <div class="metric"><div class="num num--ink">234 355</div><div class="lbl">transferencias (aristas)</div></div>
+          <div class="metric"><div class="num num--ink">166</div><div class="lbl">features por nodo</div></div>
+          <div class="metric"><div class="num num--ink">49</div><div class="lbl">pasos temporales</div></div>
+        </div>
+        <div style="background:var(--bg-alt); padding:26px 32px; border-left:3px solid var(--accent);">
+          <div style="font-family:var(--ff-serif); font-size:30px; color:var(--ink); font-weight:500;">Composición del subconjunto etiquetado</div>
+          <div style="margin-top:16px; display:flex; gap:10px; align-items:center;">
+            <div style="width:100px; text-align:right; font-family:var(--ff-mono); font-size:22px;">Lícitas</div>
+            <div style="flex:1; background:var(--rule); height:28px; position:relative;"><div style="position:absolute; left:0; top:0; bottom:0; width:90.2%; background:var(--support);"></div></div>
+            <div style="font-family:var(--ff-mono); font-size:22px; font-weight:600; width:80px;">90.2%</div>
+          </div>
+          <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+            <div style="width:100px; text-align:right; font-family:var(--ff-mono); font-size:22px;">Ilícitas</div>
+            <div style="flex:1; background:var(--rule); height:28px; position:relative;"><div style="position:absolute; left:0; top:0; bottom:0; width:9.8%; background:var(--accent);"></div></div>
+            <div style="font-family:var(--ff-mono); font-size:22px; font-weight:600; width:80px; color:var(--accent);">9.8%</div>
+          </div>
+          <p class="small" style="margin-top:18px;">Y si incluimos los 157 205 nodos sin etiqueta, la clase ilícita desciende a <b>&lt;2%</b>. Por eso construimos escenarios controlados.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; font-weight:600; color:var(--accent); margin-bottom:16px;">Escenarios sintéticos construidos</div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div style="display:flex; align-items:center; gap:20px; padding:18px 24px; background:var(--bg-alt); border:1px solid var(--rule);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:42px; color:var(--ink); min-width:120px; font-feature-settings:'tnum' 1;">1:1</div>
+            <div class="body" style="font-size:28px; color:var(--ink-soft);">Balanceado ideal — submuestreo agresivo de lícitas</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:20px; padding:18px 24px; background:var(--bg-alt); border:1px solid var(--rule);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:42px; color:var(--ink); min-width:120px; font-feature-settings:'tnum' 1;">1:10</div>
+            <div class="body" style="font-size:28px; color:var(--ink-soft);">Cercano a la proporción natural del Elliptic</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:20px; padding:18px 24px; background:var(--bg-alt); border-left:3px solid var(--accent); border-top:1px solid var(--rule); border-right:1px solid var(--rule); border-bottom:1px solid var(--rule);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:42px; color:var(--accent); min-width:120px; font-feature-settings:'tnum' 1;">1:50</div>
+            <div class="body" style="font-size:28px; color:var(--ink-soft);">Desbalance severo — <b>régimen crítico regulado</b></div>
+          </div>
+          <div style="display:flex; align-items:center; gap:20px; padding:18px 24px; background:var(--bg-alt); border:1px solid var(--rule);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:42px; color:var(--ink); min-width:120px; font-feature-settings:'tnum' 1;">1:100</div>
+            <div class="body" style="font-size:28px; color:var(--ink-soft);">Desbalance extremo — límite de viabilidad</div>
+          </div>
+        </div>
+        <p class="small" style="margin-top:20px; font-style:italic;">Los escenarios se construyen por submuestreo estratificado de la clase mayoritaria, preservando la temporalidad.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">08 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 09 — DISEÑO FACTORIAL ═══════════════ -->
+<section data-screen-label="09 Diseño factorial">
+  <div class="slide">
+    <div class="eyebrow">III · Método</div>
+    <h2 class="h-head" style="max-width:1600px;">Diseño factorial completo 4 × 4 × 3 × 3</h2>
+    <p class="h-sub" style="max-width:1550px;">ANOVA factorial con 20 réplicas estocásticas por celda → distribuciones empíricas de estabilidad</p>
+
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr) auto 1fr; gap:20px; align-items:stretch; margin-top:36px;">
+      <div style="background:var(--bg-alt); padding:28px; border-top:3px solid var(--accent);">
+        <div class="micro" style="letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:8px;">Factor 1</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; margin:0 0 12px; color:var(--ink);">Escenarios · 4</h4>
+        <p class="small" style="font-family:var(--ff-mono); color:var(--ink); font-size:22px; line-height:1.6;">1:1<br/>1:10<br/>1:50<br/>1:100</p>
+      </div>
+      <div style="background:var(--bg-alt); padding:28px; border-top:3px solid var(--accent);">
+        <div class="micro" style="letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:8px;">Factor 2</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; margin:0 0 12px; color:var(--ink);">Arquitecturas · 4</h4>
+        <p class="small" style="font-family:var(--ff-mono); color:var(--ink); font-size:22px; line-height:1.6;">GCN<br/>GraphSAGE<br/>GAT<br/>TAGCN</p>
+      </div>
+      <div style="background:var(--bg-alt); padding:28px; border-top:3px solid var(--accent);">
+        <div class="micro" style="letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:8px;">Factor 3</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; margin:0 0 12px; color:var(--ink);">Balanceo · 3</h4>
+        <p class="small" style="font-family:var(--ff-mono); color:var(--ink); font-size:22px; line-height:1.6;">none<br/>class_weighting<br/>focal_loss</p>
+      </div>
+      <div style="background:var(--bg-alt); padding:28px; border-top:3px solid var(--accent);">
+        <div class="micro" style="letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:8px;">Factor 4</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; margin:0 0 12px; color:var(--ink);">Explicadores · 3</h4>
+        <p class="small" style="font-family:var(--ff-mono); color:var(--ink); font-size:22px; line-height:1.6;">GNNExplainer<br/>PGExplainer<br/>GNNShap</p>
+      </div>
+      <div style="display:flex; align-items:center; justify-content:center; font-family:var(--ff-serif); font-size:48px; color:var(--ink-mute);">=</div>
+      <div style="background:var(--dark); color:#ECE6D8; padding:28px; display:flex; flex-direction:column; justify-content:center;">
+        <div style="font-family:var(--ff-serif); font-size:84px; font-weight:600; color:var(--accent-soft); line-height:1; letter-spacing:-0.02em; font-feature-settings:'tnum' 1;">144</div>
+        <div class="micro" style="color:#ECE6D8; margin-top:10px;">configuraciones únicas</div>
+        <div class="micro" style="color:#B8B2A4; margin-top:14px;">× 20 seeds = <b style="color:#ECE6D8;">2 880</b> corridas</div>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:32px; margin-top:48px;">
+      <div class="card">
+        <h4>Infraestructura</h4>
+        <p>3 máquinas con GPU (RTX 3050/4060/A4000) · MLflow tracking · consolidación atómica a CSV</p>
+      </div>
+      <div class="card">
+        <h4>Protocolo</h4>
+        <p>Hiperparámetros fijos por arquitectura (grid search previo) · split estático 80/10/10 · semillas 0–19</p>
+      </div>
+      <div class="card">
+        <h4>Estadística</h4>
+        <p>ANOVA factorial · Tukey HSD · Cohen d · Kruskal-Wallis como sanidad no-paramétrica</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">09 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 10 — QUALITY GATE ═══════════════ -->
+<section data-screen-label="10 Quality Gate">
+  <div class="slide">
+    <div class="eyebrow">III · Método</div>
+    <h2 class="h-head" style="max-width:1600px;">Quality gate: <span style="color:var(--accent);">17 de 48</span> configuraciones pasaron</h2>
+    <p class="h-sub" style="max-width:1600px;">Evitamos contaminar el análisis de estabilidad con clasificadores inservibles</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1.3fr; gap:64px; margin-top:36px; align-items:center;">
+      <div>
+        <div style="background:var(--bg-alt); padding:36px 40px;">
+          <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:14px;">Umbrales del gate</div>
+          <div style="display:flex; gap:40px; margin-top:12px;">
+            <div>
+              <div style="font-family:var(--ff-mono); font-size:28px; color:var(--ink-soft);">F1 ≥</div>
+              <div style="font-family:var(--ff-serif); font-size:96px; font-weight:600; color:var(--ink); line-height:0.95; font-feature-settings:'tnum' 1;">0.30</div>
+            </div>
+            <div>
+              <div style="font-family:var(--ff-mono); font-size:28px; color:var(--ink-soft);">  MCC ≥</div>
+              <div style="font-family:var(--ff-serif); font-size:96px; font-weight:600; color:var(--ink); line-height:0.95; font-feature-settings:'tnum' 1;">  0.27</div>
+            </div>
+          </div>
+          <p class="small" style="margin-top:28px; line-height:1.45;">F1 por debajo indica clasificador al nivel del azar; MCC por debajo indica correlación inservible con la etiqueta. Si el modelo no clasifica, medir la estabilidad de su explicación es <b>ruido sobre ruido</b>.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--ink-mute); font-weight:600; margin-bottom:18px;">Matriz de 48 combinaciones arq × escenario × balanceo</div>
+        <!-- 48-cell grid populated by JS below -->
+        <div style="display:grid; grid-template-columns:repeat(12, 1fr); gap:6px; max-width:700px;" id="gate-grid">
+          <!-- 48 cells -->
+        </div>
+        <script>
+        (function(){
+          const grid=document.currentScript.previousElementSibling;
+          // index of 17 passing configs (derived from A10 ordering approximated)
+          const passing=new Set([4,5,9,10,11,12,13,14,15,16,17,21,22,26,28,34,40]);
+          for(let i=0;i<48;i++){
+            const d=document.createElement('div');
+            d.style.cssText='aspect-ratio:1; '+(passing.has(i)
+              ? 'background:var(--accent); border:1px solid var(--accent);'
+              : 'background:var(--bg-alt); border:1px solid var(--rule);');
+            grid.appendChild(d);
+          }
+        })();
+        </script>
+        <div style="display:flex; gap:32px; margin-top:24px;">
+          <div style="display:flex; gap:10px; align-items:center;"><div style="width:22px; height:22px; background:var(--accent);"></div><span class="small" style="color:var(--ink);"><b>17 pasan</b> — F1 ≥ 0.30 y MCC ≥ 0.27</span></div>
+          <div style="display:flex; gap:10px; align-items:center;"><div style="width:22px; height:22px; background:var(--bg-alt); border:1px solid var(--rule);"></div><span class="small">31 descartadas</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">10 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 11 — PASS RATE POR ESCENARIO Y ARQUITECTURA ═══════════════ -->
+<section data-screen-label="11 Pass rate">
+  <div class="slide">
+    <div class="eyebrow">IV · Resultados</div>
+    <h2 class="h-head" style="max-width:1600px;">Pass-rate: la aprobación <span style="color:var(--accent);">no es monótona</span></h2>
+    <p class="h-sub" style="max-width:1600px;">El pico ocurre en 1:10 (67%), colapsa en 1:100 (8%) — GraphSAGE domina transversalmente</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:56px; margin-top:28px;">
+      <!-- R1: por escenario -->
+      <div>
+        <div class="micro" style="letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:18px;">R1 · Pass-rate por escenario</div>
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <!-- 1:1 -->
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--ink);">1:1</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--ink);">3 / 12 · <b style="color:var(--accent);">25%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill" style="--w:25%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--accent);">1:10 ← pico</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--accent);"><b>8 / 12 · 67%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill" style="--w:67%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--ink);">1:50</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--ink);">5 / 12 · <b>42%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill" style="--w:42%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--ink);">1:100 ← colapso</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--ink);">1 / 12 · <b>8%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill" style="--w:8%;"></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R2: por arquitectura -->
+      <div>
+        <div class="micro" style="letter-spacing:.2em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:18px;">R2 · Pass-rate por arquitectura</div>
+        <div style="display:flex; flex-direction:column; gap:18px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--ink);">GCN</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--ink);">1 / 12 · <b>8%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill support2" style="--w:8%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--ink);">TAGCN</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--ink);">3 / 12 · <b>25%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill support2" style="--w:25%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--ink);">GAT</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--ink);">5 / 12 · <b>42%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill support2" style="--w:42%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+              <span style="font-family:var(--ff-serif); font-weight:600; font-size:32px; color:var(--support);">GraphSAGE ← líder</span>
+              <span style="font-family:var(--ff-mono); font-size:26px; color:var(--support);"><b>8 / 12 · 67%</b></span>
+            </div>
+            <div class="bar-track" style="height:32px;"><div class="bar-fill support" style="--w:67%;"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:48px; padding:24px 32px; background:var(--hl); border-left:4px solid var(--accent);">
+      <p class="body" style="margin:0; font-size:28px; color:var(--ink); line-height:1.4;">
+        <b>Resultado operativo:</b> si se desconoce el régimen de desbalance del despliegue, <b>GraphSAGE</b> es la arquitectura con mayor probabilidad <i>a priori</i> de producir un clasificador entrenable.
+      </p>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">11 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 12 — HEATMAP F1 ═══════════════ -->
+<section data-screen-label="12 Heatmap F1">
+  <div class="slide">
+    <div class="eyebrow">IV · Resultados</div>
+    <h2 class="h-head" style="max-width:1600px;">Mapa de F1: GraphSAGE lidera transversalmente</h2>
+    <p class="h-sub" style="max-width:1600px;">F1 medio validación por arquitectura × escenario · quality gate aplicado</p>
+
+    <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:64px; margin-top:36px;">
+      <div>
+        <!-- heatmap 4x4 -->
+        <table style="width:100%; border-collapse:separate; border-spacing:6px; font-family:var(--ff-sans);">
+          <thead>
+            <tr>
+              <th></th>
+              <th style="font-family:var(--ff-mono); font-size:26px; color:var(--ink-soft); padding:8px 0; font-weight:500;">1:1</th>
+              <th style="font-family:var(--ff-mono); font-size:26px; color:var(--ink-soft); padding:8px 0; font-weight:500;">1:10</th>
+              <th style="font-family:var(--ff-mono); font-size:26px; color:var(--ink-soft); padding:8px 0; font-weight:500;">1:50</th>
+              <th style="font-family:var(--ff-mono); font-size:26px; color:var(--ink-soft); padding:8px 0; font-weight:500;">1:100</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- GCN: 0.21 0.31 0.30 0.30 -->
+            <tr>
+              <td style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); padding:12px 16px 12px 0;">GCN</td>
+              <td style="background:#EEE8DE; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.21</td>
+              <td style="background:#DDB39A; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.31</td>
+              <td style="background:#E0BBA3; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.30</td>
+              <td style="background:#E0BBA3; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.30</td>
+            </tr>
+            <tr>
+              <td style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--accent); padding:12px 16px 12px 0;">GraphSAGE</td>
+              <td style="background:#D39471; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.36</td>
+              <td style="background:#B84A2E; color:#FFF; text-align:center; font-family:var(--ff-mono); font-size:34px; font-weight:700; padding:30px 0;">0.53</td>
+              <td style="background:#BD5334; color:#FFF; text-align:center; font-family:var(--ff-mono); font-size:32px; font-weight:700; padding:30px 0;">0.52</td>
+              <td style="background:#CC7A5A; color:#FFF; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.44</td>
+            </tr>
+            <tr>
+              <td style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); padding:12px 16px 12px 0;">GAT</td>
+              <td style="background:#DDB39A; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.31</td>
+              <td style="background:#C86548; color:#FFF; text-align:center; font-family:var(--ff-mono); font-size:32px; font-weight:600; padding:30px 0;">0.46</td>
+              <td style="background:#CE7353; color:#FFF; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.42</td>
+              <td style="background:#E0BBA3; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.29</td>
+            </tr>
+            <tr>
+              <td style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); padding:12px 16px 12px 0;">TAGCN</td>
+              <td style="background:#E5C6AF; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.27</td>
+              <td style="background:#D39471; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.38</td>
+              <td style="background:#DDB39A; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.31</td>
+              <td style="background:#EEE8DE; color:#2C2A27; text-align:center; font-family:var(--ff-mono); font-size:30px; font-weight:600; padding:30px 0;">0.25</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- colorbar -->
+        <div style="margin-top:28px; display:flex; align-items:center; gap:16px;">
+          <span class="micro">F1 bajo</span>
+          <div style="flex:1; height:16px; background:linear-gradient(to right, #EEE8DE, #DDB39A, #CC7A5A, #B84A2E);"></div>
+          <span class="micro">F1 alto</span>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="font-family:var(--ff-serif); font-size:34px; font-weight:600; color:var(--ink); margin:0 0 18px;">Lectura</h4>
+        <ul class="clean">
+          <li><b>Máximo global:</b> GraphSAGE × 1:10 → F1 = 0.53</li>
+          <li><b>Columna 1:10:</b> todas las arquitecturas en su mejor ventana</li>
+          <li><b>Columna 1:100:</b> sólo GraphSAGE se mantiene útil (0.44)</li>
+          <li><b>GCN:</b> techo claro ~0.31 — limitado</li>
+        </ul>
+        <div style="margin-top:28px; background:var(--bg-alt); padding:24px 28px; border-left:3px solid var(--support);">
+          <div style="font-family:var(--ff-serif); font-size:24px; color:var(--ink); font-weight:600; margin-bottom:6px;">Nota metodológica</div>
+          <p class="small" style="line-height:1.45; margin:0;">Valores más bajos que SOTA (Weber 2019, Pareja 2020) por validación estática + quality gate estricto. Honestidad ante inferencia temporal.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">12 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 13 — PEAK COLLAPSE (HALLAZGO 1) ═══════════════ -->
+<section data-screen-label="13 Peak Collapse">
+  <div class="slide">
+    <div class="eyebrow" style="color:var(--accent);">Hallazgo #1 · Resultados</div>
+    <h2 class="h-head" style="max-width:1600px;">Pico y colapso: <span style="color:var(--accent);">ventana óptima en 1:50</span></h2>
+    <p class="h-sub" style="max-width:1600px;">La relación desbalance→estabilidad explicativa <b>no es monótona</b> — contra-intuitivo pero sistemático</p>
+
+    <div style="display:grid; grid-template-columns:1.4fr 1fr; gap:56px; margin-top:20px; align-items:center;">
+      <!-- curve SVG -->
+      <div class="fig-host" style="padding:20px 0;">
+        <svg viewBox="0 0 900 500" style="width:100%; height:554px;">
+          <!-- axes -->
+          <line x1="100" y1="420" x2="860" y2="420" class="ax-line"/>
+          <line x1="100" y1="60" x2="100" y2="420" class="ax-line"/>
+          <!-- y ticks -->
+          <g class="gridline">
+            <line x1="100" y1="60" x2="860" y2="60"/>
+            <line x1="100" y1="150" x2="860" y2="150"/>
+            <line x1="100" y1="240" x2="860" y2="240"/>
+            <line x1="100" y1="330" x2="860" y2="330"/>
+          </g>
+          <g class="ax-label" text-anchor="end">
+            <text x="88" y="68">0.8</text>
+            <text x="88" y="158">0.6</text>
+            <text x="88" y="248">0.4</text>
+            <text x="88" y="338">0.2</text>
+            <text x="88" y="428">0.0</text>
+          </g>
+          <text x="40" y="230" class="ax-title" transform="rotate(-90 40 230)" text-anchor="middle">Spearman ρ medio</text>
+          <!-- x ticks -->
+          <g class="ax-label" text-anchor="middle">
+            <text x="195" y="460">1:1</text>
+            <text x="385" y="460">1:10</text>
+            <text x="575" y="460">1:50</text>
+            <text x="765" y="460">1:100</text>
+          </g>
+          <text x="480" y="495" class="ax-title" text-anchor="middle">Escenario de desbalance</text>
+
+          <!-- GNNExplainer curve: 0.42, 0.53, 0.59, 0.24 -->
+          <!-- Map: y = 420 - v/0.8 * 360 -->
+          <!-- 0.42→231, 0.53→181, 0.59→155, 0.24→312 -->
+          <path d="M195,231 Q290,206 385,181 Q480,168 575,155 Q670,233 765,312"
+                stroke="#B84A2E" stroke-width="4" fill="none"/>
+          <g fill="#B84A2E">
+            <circle cx="195" cy="231" r="9"/>
+            <circle cx="385" cy="181" r="9"/>
+            <circle cx="575" cy="155" r="12" stroke="#FFF" stroke-width="2"/>
+            <circle cx="765" cy="312" r="10"/>
+          </g>
+          <!-- value labels -->
+          <g class="val-label" text-anchor="middle" fill="#B84A2E">
+            <text x="195" y="210">0.42</text>
+            <text x="385" y="160">0.53</text>
+            <text x="575" y="132" font-size="32" font-weight="700">0.59</text>
+            <text x="765" y="292">0.24</text>
+          </g>
+
+          <!-- annotation: peak -->
+          <g>
+            <rect x="500" y="35" width="190" height="58" fill="#F4E9D1" stroke="#B84A2E" stroke-width="1.5" style="height:57px;"/>
+            <text x="595" y="59" text-anchor="middle" font-family="Source Sans 3" font-size="20" font-weight="700" fill="#B84A2E">PICO</text>
+            <text x="595" y="81" text-anchor="middle" font-family="Source Sans 3" font-size="17" fill="#2C2A27">ventana óptima</text>
+            <line x1="575" y1="93" x2="575" y2="155" stroke="#B84A2E" stroke-width="1.5" stroke-dasharray="3 3"/>
+          </g>
+          <!-- annotation: collapse -->
+          <g>
+            <rect x="670" y="340" width="180" height="58" fill="#F4E9D1" stroke="#B84A2E" stroke-width="1.5"/>
+            <text x="760" y="364" text-anchor="middle" font-family="Source Sans 3" font-size="20" font-weight="700" fill="#B84A2E">COLAPSO</text>
+            <text x="760" y="386" text-anchor="middle" font-family="Source Sans 3" font-size="17" fill="#2C2A27">límite viable</text>
+          </g>
+
+          <!-- PGExplainer flatline at 0 -->
+          <line x1="195" y1="420" x2="765" y2="420" stroke="#8B867B" stroke-width="2.5" stroke-dasharray="6 4"/>
+          <g fill="#8B867B">
+            <circle cx="195" cy="420" r="6"/><circle cx="385" cy="420" r="6"/><circle cx="575" cy="420" r="6"/><circle cx="765" cy="420" r="6"/>
+          </g>
+          <text x="770" y="415" font-family="Source Sans 3" font-size="19" fill="#8B867B" font-style="italic">PGExplainer ≡ 0</text>
+        </svg>
+      </div>
+
+      <div>
+        <div style="display:flex; gap:14px; align-items:center; margin-bottom:14px;">
+          <div style="width:32px; height:4px; background:var(--accent);"></div>
+          <span style="font-family:var(--ff-sans); font-size:26px; color:var(--ink); font-weight:600;">GNNExplainer</span>
+        </div>
+        <p class="body" style="font-size:28px; line-height:1.4;">
+          Spearman sube de <b>0.42</b> (1:1) a <b>0.59</b> (1:50), luego colapsa a <b>0.24</b> (1:100).
+        </p>
+        <hr class="rule" style="margin:28px 0;"/>
+        <h4 style="font-family:var(--ff-serif); font-size:28px; font-weight:600; color:var(--ink); margin:0 0 12px;">Interpretación</h4>
+        <ul class="clean">
+          <li style="font-size:26px;">Desbalance moderado-alto <b>mejora</b> estabilidad por enfoque de optimización en clase minoritaria</li>
+          <li style="font-size:26px;">Sólo el régimen extremo (&gt;1:50) colapsa</li>
+          <li style="font-size:26px;">Matiza la narrativa de degradación progresiva</li>
+        </ul>
+        <div style="margin-top:24px; padding:16px 20px; background:var(--bg-alt); font-family:var(--ff-mono); font-size:22px;">
+          <b>Cohen d(1:1 → 1:50) = −0.915</b> <span class="small">(efecto grande)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">13 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 14 — PGEXPLAINER DEGENERA (HALLAZGO 2) ═══════════════ -->
+<section data-screen-label="14 PGExplainer degenera">
+  <div class="slide">
+    <div class="eyebrow" style="color:var(--accent);">Hallazgo #2 · Resultados</div>
+    <h2 class="h-head" style="max-width:1600px;">PGExplainer colapsa en <span style="color:var(--accent);">17 / 17</span> configuraciones</h2>
+    <p class="h-sub" style="max-width:1600px;">Spearman exactamente cero. No es un fallo aislado: es un modo de falla generalizado.</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:56px; margin-top:28px;">
+      <div>
+        <div style="background:var(--dark); color:#ECE6D8; padding:36px 44px;">
+          <div class="micro" style="color:var(--accent-soft); letter-spacing:.22em; text-transform:uppercase; font-weight:600; margin-bottom:20px;">Evidencia · A9</div>
+          <div style="font-family:var(--ff-serif); font-size:128px; font-weight:600; color:var(--accent-soft); line-height:0.9; font-feature-settings:'tnum' 1;">0.00</div>
+          <div style="font-family:var(--ff-sans); font-size:26px; color:#B8B2A4; margin-top:12px;">Spearman ρ medio de PGExplainer en <b style="color:#ECE6D8;">las 17</b> configuraciones aprobadas por el quality gate.</div>
+        </div>
+        <div style="margin-top:28px; background:var(--bg-alt); padding:24px 28px; border-left:3px solid var(--accent);">
+          <div style="font-family:var(--ff-mono); font-size:22px; color:var(--ink-soft); line-height:1.6;">
+            1:1 × GraphSAGE × {none, class_w}: 0.00<br/>
+            1:1 × GAT × class_w: 0.00<br/>
+            1:10 × {GCN, GraphSAGE×3, GAT×2, TAGCN×2}: 0.00<br/>
+            1:50 × {GraphSAGE×2, GAT×2, TAGCN}: 0.00<br/>
+            1:100 × GraphSAGE × class_w: 0.00<br/>
+            <span style="color:var(--accent); font-weight:600;">Total: 17 / 17</span>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; font-weight:600; color:var(--ink); margin:0 0 14px;">Diagnóstico del modo de falla</h4>
+        <ul class="clean" style="font-size:22px;">
+          <li><b>PGExplainer</b> entrena una red generadora sobre múltiples instancias</li>
+          <li>Bajo desbalance, minimizar la pérdida promedio es <b>trivial con salida constante</b></li>
+          <li>La red converge a un vector de probabilidades uniforme por arista</li>
+          <li>Las réplicas producen la <b>misma</b> máscara constante → ρ indefinido (= 0)</li>
+        </ul>
+
+        <div style="margin-top:18px; padding:18px 24px; background:var(--hl); border-left:4px solid var(--accent);">
+          <h4 style="font-family:var(--ff-serif); font-size:26px; font-weight:600; color:var(--ink); margin:0 0 8px;">Implicación directa</h4>
+          <p class="body" style="font-size:22px; line-height:1.35; margin:0; color:var(--ink);">
+            <b>PGExplainer no es viable para despliegue auditable en AML con desbalance real.</b> GNNExplainer queda como único explicador operativamente estable.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">14 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 15 — CUADRANTES PRECISIÓN vs ESTABILIDAD ═══════════════ -->
+<section data-screen-label="15 Cuadrantes">
+  <div class="slide">
+    <div class="eyebrow" style="color:var(--accent);">Hallazgo #3 · Resultados</div>
+    <h2 class="h-head" style="max-width:1600px;">Precisión y estabilidad están <span style="color:var(--accent);">disociadas</span></h2>
+    <p class="h-sub" style="max-width:1600px;">Ninguna arquitectura domina ambos ejes — la elección depende del caso de uso</p>
+
+    <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:56px; margin-top:24px; align-items:center;">
+      <!-- quadrant plot -->
+      <div class="fig-host" style="padding:10px 0;">
+        <svg viewBox="0 0 700 560" style="width:100%;">
+          <!-- axes -->
+          <line x1="90" y1="490" x2="660" y2="490" class="ax-line"/>
+          <line x1="90" y1="40" x2="90" y2="490" class="ax-line"/>
+          <!-- grid -->
+          <g class="gridline">
+            <line x1="90" y1="40" x2="660" y2="40"/>
+            <line x1="90" y1="152" x2="660" y2="152"/>
+            <line x1="90" y1="265" x2="660" y2="265"/>
+            <line x1="90" y1="377" x2="660" y2="377"/>
+            <line x1="204" y1="40" x2="204" y2="490"/>
+            <line x1="318" y1="40" x2="318" y2="490"/>
+            <line x1="432" y1="40" x2="432" y2="490"/>
+            <line x1="546" y1="40" x2="546" y2="490"/>
+          </g>
+          <!-- mid lines highlight -->
+          <line x1="375" y1="40" x2="375" y2="490" stroke="#B84A2E" stroke-width="1.3" stroke-dasharray="5 5" opacity="0.6"/>
+          <line x1="90" y1="223" x2="660" y2="223" stroke="#B84A2E" stroke-width="1.3" stroke-dasharray="5 5" opacity="0.6"/>
+          <!-- ticks x: F1 0.2..0.6 -->
+          <g class="ax-label" text-anchor="middle">
+            <text x="90" y="520">0.20</text>
+            <text x="204" y="520">0.30</text>
+            <text x="318" y="520">0.40</text>
+            <text x="432" y="520">0.50</text>
+            <text x="546" y="520">0.60</text>
+          </g>
+          <text x="375" y="550" class="ax-title" text-anchor="middle">F1 validación (precisión predictiva) →</text>
+          <g class="ax-label" text-anchor="end">
+            <text x="80" y="48">0.7</text>
+            <text x="80" y="160">0.6</text>
+            <text x="80" y="273">0.5</text>
+            <text x="80" y="385">0.4</text>
+            <text x="80" y="498">0.3</text>
+          </g>
+          <text x="30" y="260" class="ax-title" transform="rotate(-90 30 260)" text-anchor="middle">↑ Spearman ρ (estabilidad)</text>
+
+          <!-- quadrant labels -->
+          <text x="225" y="140" font-family="Source Sans 3" font-size="18" fill="#8B867B" font-style="italic" text-anchor="middle">alto ρ, baja F1</text>
+          <text x="530" y="140" font-family="Source Sans 3" font-size="18" fill="#6B8E23" font-style="italic" font-weight="600" text-anchor="middle">ambos altos (vacío)</text>
+          <text x="225" y="460" font-family="Source Sans 3" font-size="18" fill="#8B867B" font-style="italic" text-anchor="middle">ambos bajos</text>
+          <text x="530" y="460" font-family="Source Sans 3" font-size="18" fill="#8B867B" font-style="italic" text-anchor="middle">alta F1, bajo ρ</text>
+
+          <!-- points: map f1∈[0.2,0.6]→x[90,660]; ρ∈[0.3,0.7]→y[490,40]
+               GCN: 0.315, 0.484 → x=341, y=252
+               GraphSAGE: 0.458, 0.412 → x=504, y=328
+               GAT: 0.367, 0.635 → x=400, y=239... wait recompute
+               x = 90 + (f1-0.2)/0.4 * 570
+               y = 490 - (ρ-0.3)/0.4 * 450
+          -->
+          <!-- GCN 0.315, 0.484 -->
+          <g>
+            <circle cx="254" cy="283" r="18" fill="#8A7A5C" stroke="#FFF" stroke-width="2"/>
+            <text x="254" y="255" text-anchor="middle" font-family="Source Sans 3" font-size="22" font-weight="600" fill="#2C2A27">GCN</text>
+          </g>
+          <!-- GraphSAGE 0.458, 0.412 -->
+          <g>
+            <circle cx="422" cy="365" r="22" fill="#B84A2E" stroke="#FFF" stroke-width="2"/>
+            <text x="422" y="340" text-anchor="middle" font-family="Source Sans 3" font-size="22" font-weight="600" fill="#2C2A27">GraphSAGE</text>
+          </g>
+          <!-- GAT 0.367, 0.635 -->
+          <g>
+            <circle cx="328" cy="113" r="20" fill="#6B8E23" stroke="#FFF" stroke-width="2"/>
+            <text x="328" y="88" text-anchor="middle" font-family="Source Sans 3" font-size="22" font-weight="600" fill="#2C2A27">GAT</text>
+          </g>
+          <!-- TAGCN 0.332, 0.590 -->
+          <g>
+            <circle cx="278" cy="164" r="18" fill="#D97757" stroke="#FFF" stroke-width="2"/>
+            <text x="278" y="198" text-anchor="middle" font-family="Source Sans 3" font-size="22" font-weight="600" fill="#2C2A27">TAGCN</text>
+          </g>
+        </svg>
+      </div>
+
+      <div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; font-weight:600; color:var(--ink); margin:0 0 20px;">El trade-off clave</h4>
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div style="padding:18px 22px; background:var(--bg-alt); border-left:3px solid var(--accent);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:26px;">GraphSAGE</div>
+            <div class="small">F1 = 0.46 · ρ = 0.41 — <b>domina precisión</b>, cae en estabilidad</div>
+          </div>
+          <div style="padding:18px 22px; background:var(--bg-alt); border-left:3px solid var(--support);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:26px;">GAT</div>
+            <div class="small">F1 = 0.37 · ρ = 0.63 — <b>domina estabilidad</b>, F1 moderado</div>
+          </div>
+          <div style="padding:18px 22px; background:var(--bg-alt); border-left:3px solid var(--support);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:26px;">TAGCN</div>
+            <div class="small">F1 = 0.33 · ρ = 0.59 — <b>estabilidad alta</b>, receptive field extendido</div>
+          </div>
+          <div style="padding:18px 22px; background:var(--bg-alt); border-left:3px solid var(--rule);">
+            <div style="font-family:var(--ff-serif); font-weight:600; font-size:26px;">GCN</div>
+            <div class="small">F1 = 0.31 · ρ = 0.48 — <b>ni lo uno ni lo otro</b></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">&nbsp;</span><span class="page">15 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 16 — TOP-10 CONFIGS ═══════════════ -->
+<section data-screen-label="16 Top-10 configs">
+  <div class="slide">
+    <div class="eyebrow">IV · Resultados</div>
+    <h2 class="h-head" style="max-width:1600px;">Top-10: estabilidad máxima en <span style="color:var(--accent);">TAGCN/GAT × 1:50 × focal</span></h2>
+    <p class="h-sub" style="max-width:1600px;">Receptive field amplio + pérdida focal + desbalance moderado-alto = mejor robustez</p>
+
+    <table class="tbl tbl--compact" style="margin-top:20px;">
+      <thead>
+        <tr>
+          <th style="width:60px;">#</th>
+          <th style="width:140px;">Escenario</th>
+          <th>Arquitectura</th>
+          <th>Balanceo</th>
+          <th class="num" style="text-align:right;">Spearman ρ</th>
+          <th style="text-align:right; width:220px;">Barra</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hl"><td><b>1</b></td><td>1:50</td><td><b>TAGCN</b></td><td>focal_loss</td><td class="num"><b>0.789</b></td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill" style="--w:98.7%;"></div></div></td></tr>
+        <tr class="hl"><td><b>2</b></td><td>1:50</td><td><b>GAT</b></td><td>focal_loss</td><td class="num"><b>0.782</b></td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill" style="--w:97.7%;"></div></div></td></tr>
+        <tr><td>3</td><td>1:10</td><td>GAT</td><td>none</td><td class="num">0.716</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:89.5%;"></div></div></td></tr>
+        <tr><td>4</td><td>1:10</td><td>GraphSAGE</td><td>none</td><td class="num">0.695</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:86.9%;"></div></div></td></tr>
+        <tr><td>5</td><td>1:10</td><td>GAT</td><td>focal_loss</td><td class="num">0.654</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:81.8%;"></div></div></td></tr>
+        <tr><td>6</td><td>1:10</td><td>TAGCN</td><td>focal_loss</td><td class="num">0.631</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:78.9%;"></div></div></td></tr>
+        <tr><td>7</td><td>1:50</td><td>GAT</td><td>class_w.</td><td class="num">0.616</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:77.0%;"></div></div></td></tr>
+        <tr><td>8</td><td>1:1</td><td>GraphSAGE</td><td>none</td><td class="num">0.590</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:73.7%;"></div></div></td></tr>
+        <tr><td>9</td><td>1:10</td><td>GCN</td><td>class_w.</td><td class="num">0.484</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:60.5%;"></div></div></td></tr>
+        <tr><td>10</td><td>1:10</td><td>GraphSAGE</td><td>class_w.</td><td class="num">0.420</td><td><div class="bar-track" style="height:12px; margin-top:4px;"><div class="bar-fill support2" style="--w:52.5%;"></div></div></td></tr>
+      </tbody>
+    </table>
+    <style>
+      .tbl--compact th, .tbl--compact td { padding: 8px 14px !important; font-size: 22px; }
+    </style>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:24px; margin-top:20px;">
+      <div class="card" style="padding:18px 22px;"><h4 style="font-size:24px;">1:50 domina</h4><p style="font-size:20px;">los dos primeros puestos son 1:50 — confirma la ventana óptima del Hallazgo #1</p></div>
+      <div class="card" style="padding:18px 22px;"><h4 style="font-size:24px;">Focal loss</h4><p style="font-size:20px;">aparece en #1, #2, #5 y #6 — la ponderación dinámica ayuda bajo desbalance alto</p></div>
+      <div class="card" style="padding:18px 22px;"><h4 style="font-size:24px;">TAGCN/GAT</h4><p style="font-size:20px;">receptive field extendido + atención multi-cabeza estabilizan el ranking</p></div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">16 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 17 — SOTA HONESTO ═══════════════ -->
+<section data-screen-label="17 SOTA honesto">
+  <div class="slide">
+    <div class="eyebrow">V · Discusión</div>
+    <h2 class="h-head" style="max-width:1600px;">Comparación con el estado del arte</h2>
+    <p class="h-sub" style="max-width:1600px;">Nuestros F1 son menores — no por implementación, sino por protocolo metodológico más estricto</p>
+
+    <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:56px; margin-top:32px;">
+      <div>
+        <table class="tbl">
+          <thead>
+            <tr><th>Trabajo</th><th>Modelo</th><th class="num" style="text-align:right;">F1</th><th>Split</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pareja 2020</td><td>EvolveGCN</td><td class="num"><b>0.89</b></td><td>temporal · test</td></tr>
+            <tr><td>arXiv 2602.23599</td><td>GraphSAGE + warm start</td><td class="num"><b>0.85</b></td><td>validación</td></tr>
+            <tr><td>Weber 2019</td><td>Random Forest</td><td class="num">0.79</td><td>temporal · test</td></tr>
+            <tr class="hl"><td><b>Este trabajo</b></td><td><b>GraphSAGE</b></td><td class="num"><b>0.53</b></td><td>estático · val + gate</td></tr>
+            <tr><td>Weber 2019</td><td>GCN</td><td class="num">0.41</td><td>temporal · test</td></tr>
+            <tr class="hl"><td><b>Este trabajo</b></td><td><b>GCN</b></td><td class="num"><b>0.31</b></td><td>estático · val + gate</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h4 style="font-family:var(--ff-serif); font-size:32px; font-weight:600; color:var(--ink); margin:0 0 20px;">Por qué no son comparables directamente</h4>
+        <ul class="clean">
+          <li><b>Split temporal</b> sobre test favorece: los pasos finales de Elliptic tienen mayor tasa de etiquetado</li>
+          <li><b>Warm start</b> transfiere información de otros datasets AML</li>
+          <li><b>Quality gate</b> descartó 31/48 configuraciones; los trabajos previos reportan el mejor valor sin filtro</li>
+        </ul>
+        <div style="margin-top:28px; padding:24px 28px; background:var(--hl); border-left:4px solid var(--accent);">
+          <p class="body" style="margin:0; font-size:26px; line-height:1.4; color:var(--ink);">
+            <b>Contribución de esta tesis</b>: no superar F1. Caracterizar <b>estabilidad explicativa</b> — dimensión que ningún trabajo comparado evalúa.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">17 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 18 — MATRIZ DE RECOMENDACIÓN ═══════════════ -->
+<section data-screen-label="18 Matriz recomendación">
+  <div class="slide">
+    <div class="eyebrow">V · Discusión</div>
+    <h2 class="h-head" style="max-width:1600px;">Matriz de recomendación operativa</h2>
+    <p class="h-sub" style="max-width:1600px;">No hay arquitectura dominante; hay una tabla de decisión por caso de uso</p>
+
+    <table class="tbl" style="margin-top:28px;">
+      <thead>
+        <tr>
+          <th style="width:38%;">Caso de uso</th>
+          <th class="num" style="text-align:center;">GCN</th>
+          <th class="num" style="text-align:center;">GraphSAGE</th>
+          <th class="num" style="text-align:center;">GAT</th>
+          <th class="num" style="text-align:center;">TAGCN</th>
+          <th style="text-align:left; width:220px; padding-left:28px;">Ganadora</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Alta precisión predictiva</td>
+          <td class="num" style="text-align:center;">0</td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center;">2</td>
+          <td class="num" style="text-align:center;">1</td>
+          <td style="padding-left:28px;"><span class="badge badge--accent">GraphSAGE</span></td>
+        </tr>
+        <tr>
+          <td>Alta auditabilidad (XAI estable)</td>
+          <td class="num" style="text-align:center;">1</td>
+          <td class="num" style="text-align:center;">1</td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td style="padding-left:28px;"><span class="badge badge--support">GAT / TAGCN</span></td>
+        </tr>
+        <tr>
+          <td>Cumplimiento regulatorio</td>
+          <td class="num" style="text-align:center;">1</td>
+          <td class="num" style="text-align:center;">2</td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center;">2</td>
+          <td style="padding-left:28px;"><span class="badge badge--support">GAT</span></td>
+        </tr>
+        <tr>
+          <td>Inferencia rápida</td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center;">1</td>
+          <td class="num" style="text-align:center;">2</td>
+          <td style="padding-left:28px;"><span class="badge badge--ink">GCN / GraphSAGE</span></td>
+        </tr>
+        <tr>
+          <td>Desbalance extremo (1:50+)</td>
+          <td class="num" style="text-align:center;">0</td>
+          <td class="num" style="text-align:center;">2</td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td style="padding-left:28px;"><span class="badge badge--support">GAT / TAGCN</span></td>
+        </tr>
+        <tr>
+          <td>Baseline balanceado (1:1 / 1:10)</td>
+          <td class="num" style="text-align:center;">1</td>
+          <td class="num" style="text-align:center; background:var(--hl);"><b>3</b></td>
+          <td class="num" style="text-align:center;">2</td>
+          <td class="num" style="text-align:center;">2</td>
+          <td style="padding-left:28px;"><span class="badge badge--accent">GraphSAGE</span></td>
+        </tr>
+        <tr style="border-top:2px solid var(--ink);">
+          <td style="font-weight:600;">Total (suma de scores)</td>
+          <td class="num" style="text-align:center;"><b>6</b></td>
+          <td class="num" style="text-align:center;"><b>14</b></td>
+          <td class="num" style="text-align:center; color:var(--accent);"><b>15</b></td>
+          <td class="num" style="text-align:center;"><b>13</b></td>
+          <td style="padding-left:28px; font-style:italic; color:var(--ink-mute);">GAT más versátil</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">18 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 19 — COSTO COMPUTACIONAL ═══════════════ -->
+<section data-screen-label="19 Costo computacional">
+  <div class="slide">
+    <div class="eyebrow">V · Discusión</div>
+    <h2 class="h-head" style="max-width:1600px;">Costo computacional: <span style="color:var(--accent);">XAI domina el TCO</span> en hardware modesto</h2>
+    <p class="h-sub" style="max-width:1600px;">Elegir explicador afecta el costo de despliegue tanto como elegir modelo</p>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:56px; margin-top:32px;">
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:18px;">Máquina B · RTX 4060</div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="font-size:26px; font-family:var(--ff-serif); font-weight:600;">Entrenamiento</span><span style="font-family:var(--ff-mono); font-size:24px;">3.12 h</span></div>
+            <div class="bar-track" style="height:28px;"><div class="bar-fill" style="--w:67%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="font-size:26px; font-family:var(--ff-serif); font-weight:600;">Explicación XAI</span><span style="font-family:var(--ff-mono); font-size:24px;">1.53 h</span></div>
+            <div class="bar-track" style="height:28px;"><div class="bar-fill support2" style="--w:33%;"></div></div>
+          </div>
+        </div>
+        <p class="small" style="margin-top:18px; font-style:italic;">Proporción normal: entrenamiento domina.</p>
+      </div>
+
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; margin-bottom:18px;">Máquina C · RTX 3050</div>
+        <div style="display:flex; flex-direction:column; gap:14px;">
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="font-size:26px; font-family:var(--ff-serif); font-weight:600;">Entrenamiento</span><span style="font-family:var(--ff-mono); font-size:24px;">5.40 h</span></div>
+            <div class="bar-track" style="height:28px;"><div class="bar-fill" style="--w:18%;"></div></div>
+          </div>
+          <div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;"><span style="font-size:26px; font-family:var(--ff-serif); font-weight:600; color:var(--accent);">Explicación XAI</span><span style="font-family:var(--ff-mono); font-size:24px; color:var(--accent);"><b>24.0 h</b></span></div>
+            <div class="bar-track" style="height:28px;"><div class="bar-fill" style="--w:82%;"></div></div>
+          </div>
+        </div>
+        <p class="small" style="margin-top:18px; font-style:italic; color:var(--accent);">Proporción invertida: la XAI domina <b>4.4×</b> al entrenamiento.</p>
+      </div>
+    </div>
+
+    <div style="margin-top:52px; padding:28px 36px; background:var(--dark); color:#ECE6D8;">
+      <div class="pullquote" style="font-size:38px; color:#ECE6D8; line-height:1.3;">
+        Para una institución con recursos limitados, el <span style="color:var(--accent-soft);">costo marginal de producir una explicación por predicción</span> puede ser el factor dominante del TCO.
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">19 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 20 — CONCLUSIONES ═══════════════ -->
+<section data-screen-label="20 Conclusiones">
+  <div class="slide">
+    <div class="eyebrow">VI · Cierre</div>
+    <h2 class="h-head" style="max-width:1600px;">Conclusiones</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:48px; margin-top:40px;">
+      <div class="fade-up d1" style="display:flex; gap:28px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:96px; color:var(--accent); line-height:0.9; min-width:120px; font-feature-settings:'tnum' 1;">01</div>
+        <div>
+          <h4 style="font-family:var(--ff-serif); font-size:32px; font-weight:600; color:var(--ink); margin:0 0 12px;">Pico y colapso, no monotonía</h4>
+          <p class="body" style="font-size:26px; line-height:1.4;">La relación desbalance→estabilidad explicativa tiene una <b>ventana óptima en 1:50</b> (ρ = 0.59) y un colapso abrupto en 1:100 (ρ = 0.24).</p>
+        </div>
+      </div>
+      <div class="fade-up d2" style="display:flex; gap:28px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:96px; color:var(--accent); line-height:0.9; min-width:120px; font-feature-settings:'tnum' 1;">02</div>
+        <div>
+          <h4 style="font-family:var(--ff-serif); font-size:32px; font-weight:600; color:var(--ink); margin:0 0 12px;">PGExplainer se degenera</h4>
+          <p class="body" style="font-size:26px; line-height:1.4;"><b>17 / 17 configuraciones con ρ = 0.00.</b> Modo de falla sistemático bajo desbalance. GNNExplainer es el único viable.</p>
+        </div>
+      </div>
+      <div class="fade-up d3" style="display:flex; gap:28px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:96px; color:var(--accent); line-height:0.9; min-width:120px; font-feature-settings:'tnum' 1;">03</div>
+        <div>
+          <h4 style="font-family:var(--ff-serif); font-size:32px; font-weight:600; color:var(--ink); margin:0 0 12px;">Precisión ≠ estabilidad</h4>
+          <p class="body" style="font-size:26px; line-height:1.4;">Ninguna arquitectura domina ambos ejes. <b>GraphSAGE lidera F1; GAT / TAGCN lideran estabilidad.</b></p>
+        </div>
+      </div>
+      <div class="fade-up d4" style="display:flex; gap:28px; align-items:flex-start;">
+        <div style="font-family:var(--ff-serif); font-weight:600; font-size:96px; color:var(--accent); line-height:0.9; min-width:120px; font-feature-settings:'tnum' 1;">04</div>
+        <div>
+          <h4 style="font-family:var(--ff-serif); font-size:32px; font-weight:600; color:var(--ink); margin:0 0 12px;">Matriz de decisión operativa</h4>
+          <p class="body" style="font-size:26px; line-height:1.4;">Seis casos de uso, cuatro arquitecturas, una recomendación clara por escenario. <b>GAT más versátil en total (15).</b></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">20 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 21 — APORTES + TRABAJO FUTURO ═══════════════ -->
+<section data-screen-label="21 Aportes y futuro">
+  <div class="slide">
+    <div class="eyebrow">VI · Cierre</div>
+    <h2 class="h-head" style="max-width:1600px;">Aportes y trabajo futuro</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:56px; margin-top:32px;">
+      <div>
+        <div class="badge badge--ink" style="margin-bottom:20px;">Aportes</div>
+        <ul class="clean">
+          <li><b>Académico:</b> primera evidencia sistemática de degeneración de PGExplainer bajo desbalance en AML</li>
+          <li><b>Académico:</b> caracterización empírica del patrón pico-colapso en estabilidad explicativa</li>
+          <li><b>Práctico:</b> matriz de recomendación lista para instituciones financieras y reguladores</li>
+          <li><b>Infraestructura:</b> pipeline reproducible (MLflow + quality gate) con 2 880 corridas consolidadas</li>
+        </ul>
+      </div>
+      <div>
+        <div class="badge badge--accent" style="margin-bottom:20px;">Trabajo futuro</div>
+        <ul class="clean">
+          <li>Extensión a otros datasets AML: BABD, FTX-Chain, Bitcoin Heist</li>
+          <li>Explicadores contrafactuales (CF-GNNExplainer, CLEAR) como alternativa a PGExplainer</li>
+          <li>Análisis de drift temporal: estabilidad entre ventanas del Elliptic</li>
+          <li>Interacción con GraphSMOTE y sobremuestreo estructural del subgrafo</li>
+          <li>Evaluación de Fidelity+/Fidelity− para cerrar la terna Estabilidad–Fidelity–Parsimonia</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Estabilidad XAI · GNNs · Elliptic</span><span class="page">21 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 22 — FIN / PREGUNTAS ═══════════════ -->
+<section data-screen-label="22 Fin Preguntas">
+  <div class="slide section-slide" style="background:var(--dark);">
+    <div>
+      <div class="eyebrow">Fin de la presentación principal</div>
+    </div>
+    <div>
+      <h2 class="h-section" style="font-size:180px; color:var(--bg); line-height:0.95;">Gracias.</h2>
+      <p class="h-sub" style="color:#B8B2A4; font-size:44px; margin-top:40px; max-width:1500px;">
+        Quedamos atentos a sus preguntas.
+      </p>
+    </div>
+    <div style="display:flex; justify-content:space-between; align-items:flex-end;">
+      <div>
+        <div class="micro" style="letter-spacing:.22em; text-transform:uppercase; color:var(--accent-soft); font-weight:600; margin-bottom:10px;">Autores</div>
+        <div style="font-family:var(--ff-serif); font-size:32px; color:var(--bg); line-height:1.2;">
+          Alejandro Gómez Huertas · Juan Diego Garzón Ovalle
+        </div>
+        <div style="font-family:var(--ff-serif); font-size:24px; color:#B8B2A4; margin-top:6px;">
+          Dir. Dr. Cristian Rosero Arias · UTP · 2026
+        </div>
+      </div>
+      <div style="font-family:var(--ff-mono); font-size:22px; color:#8B867B; text-align:right;">
+        Slides 23–30: anexos técnicos<br/>
+        A.1 a A.21 — fundamentos y profundización
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 23 — ANEXOS A.1–A.4 (FUNDAMENTOS GNN) ═══════════════ -->
+<section data-screen-label="23 Anexos A1-A4 GNN fundamentos">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Fundamentos GNN</div>
+    <h2 class="h-head">A.1 · MLP → A.4 · Arquitecturas evaluadas</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:36px; margin-top:28px;">
+      <!-- A.1 MLP -->
+      <div style="background:var(--bg-alt); padding:26px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.1 · Perceptrón multicapa</div>
+        <h4 style="font-family:var(--ff-serif); font-size:26px; margin:8px 0 10px;">Bloque base del deep learning</h4>
+        <svg viewBox="0 0 500 160" style="width:100%; height:140px;">
+          <g stroke="#8B867B" stroke-width="1" fill="none" opacity="0.6">
+            <line x1="60" y1="30" x2="180" y2="30"/><line x1="60" y1="30" x2="180" y2="80"/><line x1="60" y1="30" x2="180" y2="130"/>
+            <line x1="60" y1="80" x2="180" y2="30"/><line x1="60" y1="80" x2="180" y2="80"/><line x1="60" y1="80" x2="180" y2="130"/>
+            <line x1="60" y1="130" x2="180" y2="30"/><line x1="60" y1="130" x2="180" y2="80"/><line x1="60" y1="130" x2="180" y2="130"/>
+            <line x1="180" y1="30" x2="320" y2="60"/><line x1="180" y1="30" x2="320" y2="100"/>
+            <line x1="180" y1="80" x2="320" y2="60"/><line x1="180" y1="80" x2="320" y2="100"/>
+            <line x1="180" y1="130" x2="320" y2="60"/><line x1="180" y1="130" x2="320" y2="100"/>
+            <line x1="320" y1="60" x2="440" y2="80"/><line x1="320" y1="100" x2="440" y2="80"/>
+          </g>
+          <g fill="#D4CDBF"><circle cx="60" cy="30" r="10"/><circle cx="60" cy="80" r="10"/><circle cx="60" cy="130" r="10"/></g>
+          <g fill="#8A7A5C"><circle cx="180" cy="30" r="10"/><circle cx="180" cy="80" r="10"/><circle cx="180" cy="130" r="10"/></g>
+          <g fill="#8A7A5C"><circle cx="320" cy="60" r="10"/><circle cx="320" cy="100" r="10"/></g>
+          <circle cx="440" cy="80" r="12" fill="#B84A2E"/>
+        </svg>
+        <p class="small" style="margin-top:10px; font-family:var(--ff-mono); line-height:1.5;">h<sup>(l+1)</sup> = σ(W<sup>(l)</sup> h<sup>(l)</sup> + b<sup>(l)</sup>)</p>
+        <p class="small" style="margin-top:8px;">Ignora relaciones entre instancias — limitación fundamental para grafos.</p>
+      </div>
+
+      <!-- A.2 Grafo -->
+      <div style="background:var(--bg-alt); padding:26px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.2 · Grafo atribuido dirigido</div>
+        <h4 style="font-family:var(--ff-serif); font-size:26px; margin:8px 0 10px;">G = (V, E, X)</h4>
+        <p class="small" style="line-height:1.5;">En Elliptic: V = 203 769 transacciones con X ∈ ℝ<sup>166</sup>; E = 234 355 transferencias dirigidas. Features locales (tiempo, in/out) y agregadas del vecindario.</p>
+        <div style="margin-top:12px; padding:12px 16px; background:var(--bg); font-family:var(--ff-mono); font-size:20px;">
+          x<sub>v</sub> = [t<sub>v</sub>, in<sub>v</sub>, out<sub>v</sub>, agg(N(v)), …]
+        </div>
+      </div>
+
+      <!-- A.3 Message passing -->
+      <div style="background:var(--bg-alt); padding:26px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.3 · Paso de mensajes</div>
+        <h4 style="font-family:var(--ff-serif); font-size:26px; margin:8px 0 10px;">Tres fases por capa</h4>
+        <ol style="font-size:22px; color:var(--ink-soft); line-height:1.5; padding-left:22px; margin:0;">
+          <li><b>Message:</b> m<sub>u→v</sub> = MSG(h<sub>u</sub>, h<sub>v</sub>, e<sub>uv</sub>)</li>
+          <li><b>Aggregate:</b> m<sub>v</sub> = AGG{m<sub>u→v</sub> : u ∈ N(v)}</li>
+          <li><b>Update:</b> h<sub>v</sub><sup>(k+1)</sup> = UPD(h<sub>v</sub><sup>(k)</sup>, m<sub>v</sub>)</li>
+        </ol>
+        <p class="small" style="margin-top:12px;">k capas ⇒ contexto a k saltos.</p>
+      </div>
+
+      <!-- A.4 Arquitecturas -->
+      <div style="background:var(--bg-alt); padding:26px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.4 · Arquitecturas comparadas</div>
+        <table style="width:100%; font-size:20px; margin-top:10px; border-collapse:collapse;">
+          <tr style="border-bottom:1px solid var(--rule);"><td style="padding:8px 4px; font-weight:600;">GCN</td><td style="padding:8px 4px;">promedio normalizado simétrico</td></tr>
+          <tr style="border-bottom:1px solid var(--rule);"><td style="padding:8px 4px; font-weight:600;">GraphSAGE</td><td style="padding:8px 4px;">muestreo + concatenación</td></tr>
+          <tr style="border-bottom:1px solid var(--rule);"><td style="padding:8px 4px; font-weight:600;">GAT</td><td style="padding:8px 4px;">atención multi-cabeza</td></tr>
+          <tr><td style="padding:8px 4px; font-weight:600;">TAGCN</td><td style="padding:8px 4px;">filtros polinomiales orden K</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">23 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 24 — ANEXOS A.5–A.7 XAI ═══════════════ -->
+<section data-screen-label="24 Anexos A5-A7 XAI">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Métodos XAI</div>
+    <h2 class="h-head">A.5 · A.6 · A.7 — GNNExplainer, PGExplainer, GNNShap</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:32px; margin-top:28px;">
+      <div style="background:var(--bg-alt); padding:32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.5</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 14px;">GNNExplainer</h4>
+        <p style="font-size:24px; line-height:1.5; color:var(--ink-soft);">Optimiza máscara continua sobre aristas y features que maximiza la información mutua con la predicción, regularizada por sparsity.</p>
+        <div style="margin-top:16px; padding:12px 16px; background:var(--bg); font-family:var(--ff-mono); font-size:18px; line-height:1.5;">
+          max<sub>M</sub> I(Y; (A⊙M, X))<br/>
+          − λ ‖M‖<sub>1</sub>
+        </div>
+        <p class="small" style="margin-top:12px;"><b>Fuente de ruido:</b> inicialización aleatoria de M.</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:32px; border-left:3px solid var(--accent);">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.6 · colapsa en ρ=0</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 14px;">PGExplainer</h4>
+        <p style="font-size:24px; line-height:1.5; color:var(--ink-soft);">Red neuronal toma embeddings de aristas y produce probabilidades de pertenencia al subgrafo explicativo. Entrenamiento colectivo.</p>
+        <div style="margin-top:16px; padding:12px 16px; background:var(--bg); font-family:var(--ff-mono); font-size:18px; line-height:1.5;">
+          p<sub>uv</sub> = σ(MLP<sub>ψ</sub>(z<sub>u</sub>, z<sub>v</sub>))<br/>
+          ψ* = argmin<sub>ψ</sub> L(Y, Ŷ(M<sub>ψ</sub>))
+        </div>
+        <p class="small" style="margin-top:12px; color:var(--accent);"><b>En nuestros experimentos:</b> salida constante → Spearman ≡ 0.</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.7</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 14px;">GNNShap</h4>
+        <p style="font-size:24px; line-height:1.5; color:var(--ink-soft);">Valores de Shapley por muestreo Monte Carlo. Satisface eficiencia, simetría y monotonicidad axiomáticamente.</p>
+        <div style="margin-top:16px; padding:12px 16px; background:var(--bg); font-family:var(--ff-mono); font-size:18px; line-height:1.5;">
+          φ<sub>i</sub> = Σ<sub>S⊆N∖i</sub> w(S)·<br/>
+          &nbsp;&nbsp;[v(S∪{i}) − v(S)]
+        </div>
+        <p class="small" style="margin-top:12px;"><b>Varianza:</b> muestreo limitado → converge con iteraciones.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">24 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 25 — ANEXOS A.8–A.10 MÉTRICAS ═══════════════ -->
+<section data-screen-label="25 Anexos A8-A10 metricas">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Métricas de estabilidad</div>
+    <h2 class="h-head">A.8 · A.9 · A.10 — Jaccard, Spearman, SHAP Concentration</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:32px; margin-top:28px;">
+      <div style="background:var(--bg-alt); padding:32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.8 · estructural</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 14px;">Índice de Jaccard</h4>
+        <svg viewBox="0 0 260 140" style="width:100%; height:110px;">
+          <circle cx="100" cy="70" r="50" fill="#B84A2E" fill-opacity="0.35" stroke="#B84A2E" stroke-width="1.5"/>
+          <circle cx="160" cy="70" r="50" fill="#6B8E23" fill-opacity="0.35" stroke="#6B8E23" stroke-width="1.5"/>
+          <text x="75" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#2C2A27">A</text>
+          <text x="185" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="16" fill="#2C2A27">B</text>
+          <text x="130" y="74" text-anchor="middle" font-family="JetBrains Mono" font-size="14" fill="#2C2A27" font-weight="700">A∩B</text>
+        </svg>
+        <div style="font-family:var(--ff-mono); font-size:20px; line-height:1.5; background:var(--bg); padding:10px 14px; margin-top:10px;">
+          J(A,B) = |A∩B| / |A∪B|
+        </div>
+        <p class="small" style="margin-top:10px;"><b>Resultado:</b> J = 1.00 en 17/17 — artefacto estructural (A.15).</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:32px; border-left:3px solid var(--accent);">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.9 · ranking</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 14px;">Spearman ρ</h4>
+        <svg viewBox="0 0 260 140" style="width:100%; height:110px;">
+          <line x1="30" y1="120" x2="230" y2="120" stroke="#2C2A27" stroke-width="1"/>
+          <line x1="30" y1="20" x2="30" y2="120" stroke="#2C2A27" stroke-width="1"/>
+          <g fill="#B84A2E"><circle cx="60" cy="100" r="4"/><circle cx="90" cy="80" r="4"/><circle cx="120" cy="75" r="4"/><circle cx="150" cy="50" r="4"/><circle cx="180" cy="40" r="4"/><circle cx="210" cy="30" r="4"/></g>
+          <line x1="50" y1="105" x2="220" y2="28" stroke="#8B867B" stroke-width="1" stroke-dasharray="3 3"/>
+          <text x="130" y="140" text-anchor="middle" font-family="Source Sans 3" font-size="14" fill="#8B867B">rank réplica A</text>
+          <text x="15" y="70" text-anchor="middle" font-family="Source Sans 3" font-size="14" fill="#8B867B" transform="rotate(-90 15 70)">rank B</text>
+        </svg>
+        <div style="font-family:var(--ff-mono); font-size:20px; line-height:1.5; background:var(--bg); padding:10px 14px; margin-top:10px;">
+          ρ = 1 − 6Σd<sub>i</sub><sup>2</sup>/(n(n²−1))
+        </div>
+        <p class="small" style="margin-top:10px;"><b>Métrica principal:</b> captura el orden — donde vive la inestabilidad real.</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.10 · parsimonia</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 14px;">SHAP Concentration</h4>
+        <svg viewBox="0 0 260 140" style="width:100%; height:110px;">
+          <g>
+            <rect x="30" y="20" width="18" height="100" fill="#B84A2E"/>
+            <rect x="55" y="45" width="18" height="75" fill="#CC7A5A"/>
+            <rect x="80" y="68" width="18" height="52" fill="#D39471"/>
+            <rect x="105" y="85" width="18" height="35" fill="#DDB39A"/>
+            <rect x="130" y="98" width="18" height="22" fill="#E5C6AF"/>
+            <rect x="155" y="106" width="18" height="14" fill="#EEE8DE"/>
+            <rect x="180" y="112" width="18" height="8" fill="#EEE8DE"/>
+            <rect x="205" y="116" width="18" height="4" fill="#EEE8DE"/>
+          </g>
+          <text x="130" y="136" text-anchor="middle" font-family="Source Sans 3" font-size="13" fill="#8B867B">features ordenadas por |φ|</text>
+        </svg>
+        <div style="font-family:var(--ff-mono); font-size:20px; line-height:1.5; background:var(--bg); padding:10px 14px; margin-top:10px;">
+          C<sub>k</sub> = Σ<sub>i=1</sub><sup>k</sup>|φ<sub>i</sub>| / Σ<sub>i</sub>|φ<sub>i</sub>|
+        </div>
+        <p class="small" style="margin-top:10px;"><b>Resultado:</b> TAGCN / GAT concentran; GCN dispersa.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">25 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 26 — ANEXOS A.11–A.14 ═══════════════ -->
+<section data-screen-label="26 Anexos A11-A14">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Conceptos complementarios</div>
+    <h2 class="h-head">A.11 — A.14</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:32px; margin-top:28px;">
+      <div style="background:var(--bg-alt); padding:28px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.11 · Balanceo</div>
+        <h4 style="font-family:var(--ff-serif); font-size:28px; margin:8px 0 12px;">Focal Loss vs Class Weighting</h4>
+        <p style="font-size:22px; line-height:1.5; color:var(--ink-soft);">Class weighting pondera estáticamente por clase; focal loss dinámicamente por dificultad.</p>
+        <div style="font-family:var(--ff-mono); font-size:18px; margin-top:12px; padding:10px 14px; background:var(--bg);">
+          FL(p) = −α(1−p)<sup>γ</sup> log p
+        </div>
+        <p class="small" style="margin-top:10px;">Pass-rate — class_w: 44% · focal: 38% · none: 0%.</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:28px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.12 · Profundidad</div>
+        <h4 style="font-family:var(--ff-serif); font-size:28px; margin:8px 0 12px;">Oversmoothing</h4>
+        <p style="font-size:22px; line-height:1.5; color:var(--ink-soft);">Apilar k capas GNN hace que las representaciones de nodos converjan y se vuelvan indistinguibles.</p>
+        <p class="small" style="margin-top:10px;">Motiva TAGCN — expande receptive field con filtros polinomiales, no apilando capas.</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:28px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.13 · Estructura</div>
+        <h4 style="font-family:var(--ff-serif); font-size:28px; margin:8px 0 12px;">Homofilia</h4>
+        <p style="font-size:22px; line-height:1.5; color:var(--ink-soft);">Probabilidad de que dos nodos conectados compartan etiqueta. GCN y GAT asumen alta homofilia.</p>
+        <p class="small" style="margin-top:10px;">En Elliptic, los ilícitos se mezclan con lícitos → justifica GAT (pondera) y TAGCN (alcance extendido).</p>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:28px 32px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.14 · Evaluación XAI</div>
+        <h4 style="font-family:var(--ff-serif); font-size:28px; margin:8px 0 12px;">Fidelity⁺ / Fidelity⁻</h4>
+        <p style="font-size:22px; line-height:1.5; color:var(--ink-soft);">F⁺ mide caída al eliminar el subgrafo; F⁻ mide preservación al dejar sólo el subgrafo.</p>
+        <p class="small" style="margin-top:10px;"><b>Estabilidad</b> mide reproducibilidad; <b>fidelity</b> mide veracidad. Un despliegue regulado exige ambas.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">26 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 27 — ANEXOS A.15 · A.16 ═══════════════ -->
+<section data-screen-label="27 Anexos A15-A16">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Hallazgos en detalle</div>
+    <h2 class="h-head">A.15 · A.16 — Por qué Jaccard = 1 y PGExplainer = 0</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:28px;">
+      <div style="background:var(--bg-alt); padding:32px 36px;">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.15</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 16px;">Jaccard = 1.00 no es estabilidad perfecta</h4>
+        <p class="body" style="font-size:24px; line-height:1.5;">Es un <b>artefacto estructural</b>. GNNExplainer selecciona como subgrafo explicativo un subconjunto del subgrafo de cómputo, que está determinado por la <b>topología</b> del grafo — independiente de la semilla.</p>
+        <ul class="clean" style="margin-top:14px;">
+          <li style="font-size:22px; padding:10px 0 10px 32px;">Entre réplicas, las aristas coinciden → J = 1</li>
+          <li style="font-size:22px; padding:10px 0 10px 32px;">La variabilidad está en los <b>pesos continuos</b> de la máscara</li>
+          <li style="font-size:22px; padding:10px 0 10px 32px;">Spearman (orden por peso) sí captura inestabilidad</li>
+          <li style="font-size:22px; padding:10px 0 10px 32px;">Jaccard (pertenencia) <b>no</b> — por eso no lo usamos como métrica primaria</li>
+        </ul>
+      </div>
+
+      <div style="background:var(--bg-alt); padding:32px 36px; border-left:3px solid var(--accent);">
+        <div class="micro" style="color:var(--accent); letter-spacing:.2em; text-transform:uppercase; font-weight:600;">A.16</div>
+        <h4 style="font-family:var(--ff-serif); font-size:30px; margin:10px 0 16px;">Por qué PGExplainer colapsa a 0</h4>
+        <p class="body" style="font-size:24px; line-height:1.5;">El entrenamiento colectivo de PGExplainer intenta minimizar una pérdida <b>promedio</b> sobre muchas instancias.</p>
+        <div style="margin-top:14px; padding:14px 18px; background:var(--bg); font-family:var(--ff-mono); font-size:20px; line-height:1.5;">
+          ψ* = argmin Σ<sub>v</sub> L(y<sub>v</sub>, M<sub>ψ</sub>(v))
+        </div>
+        <ul class="clean" style="margin-top:14px;">
+          <li style="font-size:22px; padding:10px 0 10px 32px;">Con &lt;2% de instancias positivas, una salida constante es solución válida</li>
+          <li style="font-size:22px; padding:10px 0 10px 32px;">La red converge a la <b>misma máscara</b> para todos los nodos</li>
+          <li style="font-size:22px; padding:10px 0 10px 32px;">Entre réplicas, la misma máscara trivial → ρ indefinido (= 0)</li>
+          <li style="font-size:22px; padding:10px 0 10px 32px;">GNNExplainer no sufre esto: optimiza <b>una máscara por instancia</b></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">27 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 28 — ANEXO A.17 · A.18 ═══════════════ -->
+<section data-screen-label="28 Anexos A17-A18 estadistica">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Análisis estadístico</div>
+    <h2 class="h-head">A.17 · A.18 — Significancia y Quality Gate</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:28px;">
+      <div>
+        <div class="badge badge--ink" style="margin-bottom:16px;">A.17 · Estadística formal</div>
+        <table class="tbl" style="font-size:22px;">
+          <thead>
+            <tr><th>Test</th><th class="num" style="text-align:right;">Estadístico</th><th class="num" style="text-align:right;">p-valor</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Kruskal-Wallis (escenario)</td><td class="num">H = 4.31</td><td class="num">0.23</td></tr>
+            <tr><td>ANOVA (arquitectura)</td><td class="num">F = 2.87</td><td class="num">0.08</td></tr>
+          </tbody>
+        </table>
+        <h4 style="font-family:var(--ff-serif); font-size:26px; margin:24px 0 12px;">Tamaños de efecto (Cohen d)</h4>
+        <ul class="clean">
+          <li style="font-size:22px;"><b>1:1 → 1:50:</b> d = −0.915 <span class="small">(efecto grande)</span></li>
+          <li style="font-size:22px;"><b>1:50 → 1:100:</b> d = +1.240 <span class="small">(efecto grande)</span></li>
+          <li style="font-size:22px;"><b>GraphSAGE vs GAT:</b> d = −0.67 <span class="small">(efecto moderado)</span></li>
+        </ul>
+        <p class="small" style="margin-top:14px; font-style:italic;">No hay significancia al α = 0.05, limitado por tamaño muestral en 1:100 (n = 1). El patrón cualitativo es robusto por d.</p>
+      </div>
+
+      <div>
+        <div class="badge badge--accent" style="margin-bottom:16px;">A.18 · Quality gate</div>
+        <h4 style="font-family:var(--ff-serif); font-size:28px; margin:0 0 12px;">Justificación de umbrales</h4>
+        <div style="background:var(--bg-alt); padding:20px 24px; margin-top:12px;">
+          <p style="font-size:22px; line-height:1.5; margin:0;"><b>F1 ≥ 0.30</b> — por debajo, el clasificador no supera la línea base del azar con clases desbalanceadas.</p>
+        </div>
+        <div style="background:var(--bg-alt); padding:20px 24px; margin-top:14px;">
+          <p style="font-size:22px; line-height:1.5; margin:0;"><b>MCC ≥ 0.27</b> — por debajo, correlación inservible entre predicciones y etiquetas. MCC es robusto al desbalance.</p>
+        </div>
+        <div style="background:var(--hl); padding:20px 24px; margin-top:18px; border-left:3px solid var(--accent);">
+          <p style="font-size:22px; line-height:1.5; margin:0;"><b>Sin el quality gate</b>, las 31 configuraciones inservibles contaminarían la distribución de Spearman, produciendo conclusiones espurias sobre estabilidad.</p>
+        </div>
+        <p class="small" style="margin-top:16px;">Aplicación: 17/48 pasan · 3/12 en 1:1 · 8/12 en 1:10 · 5/12 en 1:50 · 1/12 en 1:100.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">28 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 29 — ANEXO A.19 · A.20 ═══════════════ -->
+<section data-screen-label="29 Anexos A19-A20">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Infraestructura y SOTA</div>
+    <h2 class="h-head">A.19 · A.20 — Runtime y comparación honesta</h2>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:44px; margin-top:28px;">
+      <div>
+        <div class="badge badge--ink" style="margin-bottom:16px;">A.19 · Runtime por máquina</div>
+        <table class="tbl" style="font-size:22px;">
+          <thead>
+            <tr><th>Máquina</th><th>Fase</th><th class="num" style="text-align:right;">Horas</th><th class="num" style="text-align:right;">%</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>A · A4000</td><td>Train</td><td class="num">2.40</td><td class="num">62%</td></tr>
+            <tr><td>A · A4000</td><td>Explain</td><td class="num">1.48</td><td class="num">38%</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td>B · 4060</td><td>Train</td><td class="num">3.12</td><td class="num">67%</td></tr>
+            <tr><td>B · 4060</td><td>Explain</td><td class="num">1.53</td><td class="num">33%</td></tr>
+            <tr style="border-top:1px solid var(--ink);"><td><b>C · 3050</b></td><td>Train</td><td class="num">5.40</td><td class="num">18%</td></tr>
+            <tr class="hl"><td><b>C · 3050</b></td><td><b>Explain</b></td><td class="num"><b>24.00</b></td><td class="num"><b>82%</b></td></tr>
+          </tbody>
+        </table>
+        <p class="small" style="margin-top:14px;">La XAI escala <b>peor</b> en hardware modesto. El costo marginal por explicación puede dominar el TCO.</p>
+      </div>
+
+      <div>
+        <div class="badge badge--accent" style="margin-bottom:16px;">A.20 · SOTA — diferencias de protocolo</div>
+        <table class="tbl" style="font-size:22px;">
+          <thead>
+            <tr><th>Trabajo</th><th class="num" style="text-align:right;">F1</th><th>Detalle</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Pareja 2020</td><td class="num">0.89</td><td>EvolveGCN · temporal test</td></tr>
+            <tr><td>arXiv 2025</td><td class="num">0.85</td><td>GraphSAGE · warm start</td></tr>
+            <tr><td>Weber 2019</td><td class="num">0.79</td><td>RandomForest baseline</td></tr>
+            <tr><td>Weber 2019</td><td class="num">0.41</td><td>GCN · temporal test</td></tr>
+            <tr class="hl"><td><b>Esta tesis</b></td><td class="num"><b>0.53</b></td><td>GraphSAGE · val + gate</td></tr>
+            <tr class="hl"><td><b>Esta tesis</b></td><td class="num"><b>0.31</b></td><td>GCN · val + gate</td></tr>
+          </tbody>
+        </table>
+        <p class="small" style="margin-top:14px; font-style:italic;">Nuestra contribución no es F1 superior sino <b>estabilidad explicativa</b>, dimensión que ningún trabajo comparado evalúa.</p>
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos</span><span class="page">29 / 30</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ SLIDE 30 — ANEXO A.21 EGO-NETWORKS + CIERRE ═══════════════ -->
+<section data-screen-label="30 Anexo A21 cierre">
+  <div class="slide">
+    <div class="eyebrow">Anexos · Patrones ilícitos</div>
+    <h2 class="h-head">A.21 — Ego-networks ilícitas en Elliptic</h2>
+    <p class="h-sub" style="max-width:1600px;">Patrones estructurales que justifican el receptive field extendido</p>
+
+    <div style="display:grid; grid-template-columns:repeat(4, 1fr); gap:28px; margin-top:28px;">
+      <div style="background:var(--bg-alt); padding:22px; text-align:center;">
+        <svg viewBox="0 0 160 140" style="width:100%; height:120px;">
+          <g stroke="#B84A2E" stroke-width="1.8" fill="none">
+            <line x1="80" y1="30" x2="30" y2="110"/><line x1="80" y1="30" x2="65" y2="110"/><line x1="80" y1="30" x2="95" y2="110"/><line x1="80" y1="30" x2="130" y2="110"/>
+          </g>
+          <circle cx="80" cy="30" r="12" fill="#B84A2E"/>
+          <g fill="#D4CDBF"><circle cx="30" cy="115" r="8"/><circle cx="65" cy="115" r="8"/><circle cx="95" cy="115" r="8"/><circle cx="130" cy="115" r="8"/></g>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:24px; margin:8px 0 4px;">Fan-out</h4>
+        <p class="small" style="margin:0; font-size:18px;">un nodo dispersa fondos a muchos</p>
+      </div>
+      <div style="background:var(--bg-alt); padding:22px; text-align:center;">
+        <svg viewBox="0 0 160 140" style="width:100%; height:120px;">
+          <g stroke="#B84A2E" stroke-width="1.8" fill="none">
+            <line x1="30" y1="30" x2="80" y2="110"/><line x1="65" y1="30" x2="80" y2="110"/><line x1="95" y1="30" x2="80" y2="110"/><line x1="130" y1="30" x2="80" y2="110"/>
+          </g>
+          <g fill="#D4CDBF"><circle cx="30" cy="30" r="8"/><circle cx="65" cy="30" r="8"/><circle cx="95" cy="30" r="8"/><circle cx="130" cy="30" r="8"/></g>
+          <circle cx="80" cy="115" r="12" fill="#B84A2E"/>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:24px; margin:8px 0 4px;">Fan-in</h4>
+        <p class="small" style="margin:0; font-size:18px;">muchos consolidan fondos en uno</p>
+      </div>
+      <div style="background:var(--bg-alt); padding:22px; text-align:center;">
+        <svg viewBox="0 0 160 140" style="width:100%; height:120px;">
+          <g stroke="#B84A2E" stroke-width="1.8" fill="none">
+            <line x1="20" y1="70" x2="50" y2="70"/><line x1="60" y1="70" x2="90" y2="70"/><line x1="100" y1="70" x2="130" y2="70"/>
+          </g>
+          <g fill="#B84A2E"><circle cx="20" cy="70" r="10"/><circle cx="140" cy="70" r="10"/></g>
+          <g fill="#D4CDBF"><circle cx="55" cy="70" r="8"/><circle cx="95" cy="70" r="8"/></g>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:24px; margin:8px 0 4px;">Cadena larga</h4>
+        <p class="small" style="margin:0; font-size:18px;">intermediarios en layering</p>
+      </div>
+      <div style="background:var(--bg-alt); padding:22px; text-align:center;">
+        <svg viewBox="0 0 160 140" style="width:100%; height:120px;">
+          <g stroke="#B84A2E" stroke-width="1.3" fill="none" opacity="0.7">
+            <line x1="50" y1="40" x2="110" y2="40"/><line x1="50" y1="40" x2="80" y2="75"/><line x1="50" y1="40" x2="50" y2="100"/>
+            <line x1="110" y1="40" x2="80" y2="75"/><line x1="110" y1="40" x2="110" y2="100"/>
+            <line x1="80" y1="75" x2="50" y2="100"/><line x1="80" y1="75" x2="110" y2="100"/>
+            <line x1="50" y1="100" x2="110" y2="100"/>
+          </g>
+          <g fill="#B84A2E"><circle cx="50" cy="40" r="8"/><circle cx="110" cy="40" r="8"/><circle cx="80" cy="75" r="8"/><circle cx="50" cy="100" r="8"/><circle cx="110" cy="100" r="8"/></g>
+        </svg>
+        <h4 style="font-family:var(--ff-serif); font-size:24px; margin:8px 0 4px;">Mixer cluster</h4>
+        <p class="small" style="margin:0; font-size:18px;">homofilia ilícita densa</p>
+      </div>
+    </div>
+
+    <div style="margin-top:52px; padding:32px 44px; background:var(--dark); color:#ECE6D8;">
+      <div class="pullquote" style="font-size:38px; color:#ECE6D8; line-height:1.3;">
+        Capturar estos patrones requiere alcance a <span style="color:var(--accent-soft);">2–3 saltos</span> — exactamente el receptive field que TAGCN ofrece nativamente, sin oversmoothing.
+      </div>
+    </div>
+
+    <div class="footer"><span class="brand">Anexos técnicos · Fin</span><span class="page">30 / 30</span></div>
+  </div>
+</section>
+
+</deck-stage>
+
+<!-- Notes overlay + tweak panel (Tweaks) -->
+<div id="notes-overlay" aria-hidden="true">
+  <h5>Speaker notes · slide <span id="notes-idx">1</span> / 30</h5>
+  <div id="notes-body"></div>
+</div>
+
+<div id="tweak-panel">
+  <h5>Tweaks</h5>
+  <label>Paleta</label>
+  <select id="tw-palette">
+    <option value="">Académica (papel)</option>
+    <option value="light">Clara</option>
+    <option value="dark">Oscura</option>
+  </select>
+  <label>Tipografía</label>
+  <select id="tw-font">
+    <option value="">Source (defecto)</option>
+    <option value="ibm">IBM Plex</option>
+    <option value="crimson">Crimson / Inter</option>
+  </select>
+  <label class="notes-toggle"><input type="checkbox" id="tw-notes"/> Mostrar speaker notes</label>
+</div>
+
+<!-- deck_stage starter -->
+<script src="deck-stage.js"></script>
+
+<!-- tweak + notes wiring -->
+<script>
+(function(){
+  const TWEAKS = /*EDITMODE-BEGIN*/{
+    "palette": "",
+    "font": "crimson",
+    "showNotes": false
+  }/*EDITMODE-END*/;
+  const root=document.documentElement;
+  const applyTweaks=()=>{
+    if(TWEAKS.palette) root.setAttribute('data-palette',TWEAKS.palette);
+    else root.removeAttribute('data-palette');
+    if(TWEAKS.font) root.setAttribute('data-font',TWEAKS.font);
+    else root.removeAttribute('data-font');
+    document.getElementById('notes-overlay').classList.toggle('visible',!!TWEAKS.showNotes);
+  };
+  applyTweaks();
+
+  // Speaker notes display
+  let notesData=[];
+  try{ notesData=JSON.parse(document.getElementById('speaker-notes').textContent); }catch(e){}
+  const notesIdx=document.getElementById('notes-idx');
+  const notesBody=document.getElementById('notes-body');
+  const renderNote=(i)=>{
+    const n=notesData[i]||'';
+    notesIdx.textContent=(i+1);
+    // wrap "— ALEJANDRO —" / "— JUAN DIEGO —" markers
+    const html=n
+      .replace(/— ALEJANDRO —/g,'<span class="who" style="color:#E58A6E;">Alejandro</span> ')
+      .replace(/— JUAN DIEGO —/g,'<span class="who" style="color:#A3C265;">Juan Diego</span> ')
+      .replace(/— (Anexo [^—]+) —/g,'<span class="who">$1</span> ');
+    notesBody.innerHTML=html;
+  };
+  renderNote(0);
+  window.addEventListener('message',(ev)=>{
+    if(ev.data && typeof ev.data.slideIndexChanged==='number'){
+      renderNote(ev.data.slideIndexChanged);
+    }
+  });
+
+  // Tweak panel controls
+  const panel=document.getElementById('tweak-panel');
+  document.getElementById('tw-palette').value=TWEAKS.palette;
+  document.getElementById('tw-font').value=TWEAKS.font;
+  document.getElementById('tw-notes').checked=TWEAKS.showNotes;
+  const send=()=>{
+    try{window.parent.postMessage({type:'__edit_mode_set_keys',edits:{
+      palette:TWEAKS.palette,font:TWEAKS.font,showNotes:TWEAKS.showNotes
+    }},'*');}catch(e){}
+  };
+  document.getElementById('tw-palette').addEventListener('change',e=>{TWEAKS.palette=e.target.value; applyTweaks(); send();});
+  document.getElementById('tw-font').addEventListener('change',e=>{TWEAKS.font=e.target.value; applyTweaks(); send();});
+  document.getElementById('tw-notes').addEventListener('change',e=>{TWEAKS.showNotes=e.target.checked; applyTweaks(); send();});
+
+  // edit-mode protocol
+  window.addEventListener('message',(ev)=>{
+    if(!ev.data||!ev.data.type) return;
+    if(ev.data.type==='__activate_edit_mode') panel.classList.add('visible');
+    if(ev.data.type==='__deactivate_edit_mode') panel.classList.remove('visible');
+  });
+  try{window.parent.postMessage({type:'__edit_mode_available'},'*');}catch(e){}
+})();
+</script>
+</body>
+</html>

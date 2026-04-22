@@ -1,0 +1,5 @@
+machine,phase,hours
+Machine B (4060),Train,3.12
+Machine B (4060),Explain,1.53
+Machine C (3050),Train,5.4
+Machine C (3050),Explain,24.0

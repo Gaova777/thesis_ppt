@@ -1,0 +1,4 @@
+debug_s04*.png
+.atl/cache/
+*.tmp
+.DS_Store

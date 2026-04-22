@@ -1,0 +1,11 @@
+scenario,architecture,balancing,stab_spearman_mean
+1:10,GraphSAGE,class_weighting,0.4198368065112023
+1:10,GCN,class_weighting,0.4841940359329098
+1:1,GraphSAGE,none,0.589710127227337
+1:50,GAT,class_weighting,0.6164135306206528
+1:10,TAGCN,focal_loss,0.6311641688752824
+1:10,GAT,focal_loss,0.6540558155922159
+1:10,GraphSAGE,none,0.6947060870602755
+1:10,GAT,none,0.7164289618662288
+1:50,GAT,focal_loss,0.7818594915578364
+1:50,TAGCN,focal_loss,0.7893761497128561

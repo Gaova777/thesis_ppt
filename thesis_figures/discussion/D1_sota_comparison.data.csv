@@ -1,0 +1,7 @@
+label,f1,tag,note
+This thesis — GCN best (val),0.31,ours,Struggles under imbalance
+Weber 2019 — GCN (test),0.41,external,"Static graph, temporal test split"
+This thesis — GraphSAGE best (val),0.53,ours,"Static, no temporal split"
+Weber 2019 — RandomForest (test),0.79,external,"Baseline, non-GNN"
+arXiv:2602.23599 — GraphSAGE (val),0.85,external,Recent warm-start prior
+Pareja 2020 — EvolveGCN (test),0.89,external,Temporal GNN
