@@ -1,0 +1,10 @@
+source,val_or_test_F1,type
+Weber 2019 GCN,0.628,test / native
+Weber 2019 RF,0.79,test / native
+Pareja 2020 EvolveGCN,0.89,test / temporal
+Bellei 2024 Elliptic2,0.93,test / subgraph
+arXiv:2602 GraphSAGE+norm,0.85,val / native
+Ours GCN native,0.21127348643006263,val / native
+Ours GraphSAGE native,0.5262163438828531,val / native
+Ours GAT native,0.32323232323232326,val / native
+Ours TAGCN native,0.4302405498281787,val / native

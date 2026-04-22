@@ -1,0 +1,5 @@
+arch,pass,total
+GCN,0,3
+GraphSAGE,3,3
+GAT,2,3
+TAGCN,1,3

@@ -2,7 +2,6 @@ scenario,architecture,balancing,explainer,stab_jaccard_mean
 1:10,GCN,class_weighting,GNNExplainer,1.0
 1:10,GCN,class_weighting,PGExplainer,1.0
 1:10,GraphSAGE,class_weighting,GNNExplainer,1.0
-1:10,GraphSAGE,class_weighting,PGExplainer,1.0
 1:10,GraphSAGE,focal_loss,GNNExplainer,1.0
 1:10,GraphSAGE,focal_loss,PGExplainer,1.0
 1:10,GraphSAGE,none,GNNExplainer,1.0
@@ -15,6 +14,19 @@ scenario,architecture,balancing,explainer,stab_jaccard_mean
 1:50,GraphSAGE,class_weighting,PGExplainer,1.0
 1:50,GraphSAGE,focal_loss,GNNExplainer,1.0
 1:50,GraphSAGE,focal_loss,PGExplainer,1.0
+1:10,GraphSAGE,class_weighting,PGExplainer,1.0
+1:30_native,GAT,focal_loss,GNNExplainer,1.0
+1:30_native,GAT,focal_loss,PGExplainer,1.0
+1:30_native,GAT,none,GNNExplainer,1.0
+1:30_native,GAT,none,PGExplainer,1.0
+1:30_native,GraphSAGE,class_weighting,GNNExplainer,1.0
+1:30_native,GraphSAGE,class_weighting,PGExplainer,1.0
+1:30_native,GraphSAGE,focal_loss,GNNExplainer,1.0
+1:30_native,GraphSAGE,focal_loss,PGExplainer,1.0
+1:30_native,GraphSAGE,none,GNNExplainer,1.0
+1:30_native,GraphSAGE,none,PGExplainer,1.0
+1:30_native,TAGCN,focal_loss,GNNExplainer,1.0
+1:30_native,TAGCN,focal_loss,PGExplainer,1.0
 1:100,GraphSAGE,class_weighting,GNNExplainer,1.0
 1:100,GraphSAGE,class_weighting,PGExplainer,1.0
 1:10,GAT,focal_loss,GNNExplainer,1.0
