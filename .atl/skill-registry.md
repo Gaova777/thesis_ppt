@@ -11,12 +11,12 @@ Repository: https://github.com/alejo14171/thesis-web-learning (canonical source 
 
 No user-level skills match this project's tech stack.
 
-The installed user skills (`go-testing`, `branch-pr`, `issue-creation`, `judgment-day`, `skill-creator`) target Go, GitHub PR workflows, or meta-skill-authoring — none of which apply to a vanilla HTML/SVG/JS presentation project without a git repository.
+The installed user skills (`go-testing`, `branch-pr`, `issue-creation`, `judgment-day`, `skill-creator`) target Go, GitHub PR workflows, or meta-skill-authoring — most do not apply to a vanilla HTML/SVG/JS presentation project. Local git was initialized on 2026-04-21 for safety during v3.1 integration; no GitHub remote configured yet.
 
 | Skill | Relevant? | Reason |
 |-------|-----------|--------|
 | go-testing | ❌ | No Go code |
-| branch-pr | ❌ | No git repository, no GitHub remote |
+| branch-pr | ⚠️ On demand | Local git repo initialized but no GitHub remote — only if user configures one |
 | issue-creation | ❌ | No GitHub issues |
 | judgment-day | ⚠️ On demand | Adversarial review — only when user explicitly invokes it |
 | skill-creator | ⚠️ On demand | Only when creating new AI skills |
